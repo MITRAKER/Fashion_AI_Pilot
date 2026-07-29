@@ -1,0 +1,3 @@
+#!/bin/sh
+# Harness enforcement. Do not remove. Removing this hook is itself a violation.
+python3 harness/check_lanes.py "$@" || exit 1
