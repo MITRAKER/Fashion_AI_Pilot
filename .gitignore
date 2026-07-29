@@ -25,3 +25,8 @@ Thumbs.db
 *.swp
 .idea/
 .vscode/
+
+# Showroom
+showroom/node_modules/
+showroom/renders/
+showroom/dist/

@@ -1,0 +1,19 @@
+{
+  "name": "atelier-showroom",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "capture": "node tools/capture.mjs"
+  },
+  "dependencies": {
+    "three": "^0.170.0",
+    "postprocessing": "^6.36.4"
+  },
+  "devDependencies": {
+    "vite": "^5.4.11",
+    "puppeteer": "^23.10.4"
+  }
+}
