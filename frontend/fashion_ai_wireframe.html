@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fashion AI Collection Development. Wireframe v0.1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,600;1,6..96,400&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0E0D0C;
+  --paper:#F5F5F7;          /* Apple off white */
+  --card:#FFFFFF;
+  --graphite:#4A4844;
+  --line:#DDDDE1;
+  --chalk:#3757B8;          /* pattern drafting pencil blue */
+  --chalk-soft:#E7ECFA;
+  --thread:#B3272D;         /* red thread. blockers only */
+  --thread-soft:#F8E9E9;
+  --approve:#2E7D5B;
+  --approve-soft:#E6F2EC;
+  --amberish:#8A6A1F;
+  --warn-soft:#F5EEDB;
+  --mono:'IBM Plex Mono',monospace;
+  --body:'Manrope',sans-serif;
+  --display:'Bodoni Moda',serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{font-family:var(--body);background:var(--ink);color:var(--ink);-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer}
+.mono{font-family:var(--mono)}
+.seam{border:none;border-top:1.5px dashed var(--line);margin:22px 0}
+
+/* ============ LANDING ============ */
+#landing{position:fixed;inset:0;background:var(--ink);color:var(--paper);display:flex;flex-direction:column;z-index:50;transition:opacity .7s ease,visibility .7s}
+#landing.gone{opacity:0;visibility:hidden;pointer-events:none}
+.land-top{display:flex;justify-content:space-between;align-items:center;padding:26px 40px;font-family:var(--mono);font-size:14px;letter-spacing:.22em;text-transform:uppercase;color:#8d8b86}
+.land-top .dot{color:var(--paper)}
+.land-main{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:0 40px 60px;max-width:1240px;margin:0 auto;width:100%}
+.land-copy h1{font-family:var(--display);font-weight:500;font-variation-settings:"opsz" 22;font-size:clamp(48px,7vw,96px);line-height:1.08;letter-spacing:.01em;color:#FFFFFF;opacity:0;animation:rise .8s ease forwards .3s}
+.land-copy h1 em{font-style:italic;color:#E4DFD4;font-weight:500}
+.land-sub{margin:28px auto 0;max-width:56ch;color:#b6b3ad;font-size:15px;line-height:1.7;opacity:0;animation:rise .8s ease forwards .55s}
+.land-cta{margin-top:40px;display:flex;flex-direction:column;gap:14px;align-items:center;opacity:0;animation:rise .8s ease forwards .75s}
+@keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.land-kicker,.land-copy h1,.land-sub,.land-cta{animation:none;opacity:1}}
+
+/* ============ APP FRAME ============ */
+#app{display:none;min-height:100vh;background:var(--paper)}
+#app.on{display:grid;grid-template-columns:232px 1fr}
+aside{background:var(--ink);color:#b6b3ad;padding:26px 0;display:flex;flex-direction:column;min-height:100vh;position:sticky;top:0;height:100vh}
+.brand{padding:0 24px 22px;color:var(--paper)}
+.brand .wm{font-family:var(--display);font-size:19px;letter-spacing:.02em}
+.brand .vs{font-family:var(--mono);font-size:10px;letter-spacing:.24em;color:#77746e;text-transform:uppercase;margin-top:4px}
+.navgrp{font-family:var(--mono);font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:#5f5c56;padding:18px 24px 8px}
+nav button{display:block;width:100%;text-align:left;background:none;border:0;color:#b6b3ad;padding:10px 24px;font-size:13.5px;font-weight:500;border-left:3px solid transparent}
+nav button:hover{color:var(--paper)}
+nav button.active{color:var(--paper);border-left-color:var(--paper);background:#1a1917}
+nav button .pri{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:#5f5c56;margin-left:7px}
+.side-foot{margin-top:auto;padding:18px 24px;font-family:var(--mono);font-size:10px;line-height:1.8;color:#5f5c56;letter-spacing:.06em;border-top:1px dashed #33312e}
+main{padding:34px 44px 70px;max-width:1180px}
+.crumb{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#8d8b86;margin-bottom:10px}
+h2.pg{font-family:var(--display);font-weight:400;font-size:34px;margin-bottom:6px}
+.pg-sub{color:var(--graphite);font-size:14px;max-width:70ch;margin-bottom:26px}
+.page{display:none}.page.on{display:block;animation:pgin .35s ease}
+@keyframes pgin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+.card{background:var(--card);border:1px solid var(--line);padding:22px 24px;margin-bottom:18px}
+.card h3{font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:12px}
+.card h3::after{content:"";flex:1;border-top:1.5px dashed var(--line)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+@media(max-width:980px){.grid2,.grid3{grid-template-columns:1fr}#app.on{grid-template-columns:1fr}aside{position:static;height:auto;min-height:0}}
+
+.chip{display:inline-block;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;padding:3px 9px;border:1px solid;text-transform:uppercase}
+.c-draft{color:var(--graphite);border-color:#c9c9cf;background:#efeff2}
+.c-review{color:var(--chalk);border-color:#b9c6ee;background:var(--chalk-soft)}
+.c-approved{color:var(--approve);border-color:#bcd9cb;background:var(--approve-soft)}
+.c-blocker{color:var(--thread);border-color:#e3b9bb;background:var(--thread-soft)}
+.c-warn{color:var(--amberish);border-color:#dccf9f;background:var(--warn-soft)}
+.c-ai{color:#fff;border-color:var(--chalk);background:var(--chalk)}
+.c-human{color:var(--ink);border-color:#c9c9cf;background:#fff}
+
+.kv{font-size:13.5px;line-height:2.05}
+.kv b{font-weight:600}
+.kv .lab{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#8d8b86;display:inline-block;width:150px}
+
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#8d8b86;text-align:left;padding:8px 10px;border-bottom:1.5px solid var(--ink)}
+td{padding:10px;border-bottom:1px dashed var(--line);vertical-align:top}
+tr:hover td{background:#fafafc}
+
+.btn{border:1.5px solid var(--ink);background:var(--ink);color:#fff;padding:10px 18px;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn.red{background:var(--thread);border-color:var(--thread)}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.btn.sm{padding:6px 12px;font-size:10.5px}
+
+/* tape measure calendar */
+.tape{overflow-x:auto;padding-bottom:8px}
+.tape-inner{display:flex;min-width:1060px;border:1.5px solid var(--ink);background:#fff}
+.stage{flex:1;min-width:64px;border-right:1px dashed var(--line);padding:10px 8px 12px;position:relative;cursor:pointer}
+.stage:last-child{border-right:0}
+.stage:hover{background:#fafafc}
+.stage .wk{font-family:var(--mono);font-size:9px;color:#8d8b86;letter-spacing:.08em}
+.stage .nm{font-size:10.5px;font-weight:600;line-height:1.35;margin-top:5px}
+.stage .bar{height:5px;margin-top:9px;background:#e6e6ea}
+.stage.done .bar{background:var(--ink)}
+.stage.now .bar{background:var(--chalk)}
+.stage.gate::before{content:"GATE";position:absolute;top:-9px;left:8px;font-family:var(--mono);font-size:8px;letter-spacing:.18em;background:var(--ink);color:#fff;padding:1px 5px}
+.ticks{display:flex;min-width:1060px;border-left:1.5px solid transparent}
+.ticks span{flex:1;min-width:64px;border-right:1px solid transparent;font-family:var(--mono);font-size:8.5px;color:#b3b1ac;padding:4px 8px 0}
+
+.provrow{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding:13px 0;border-bottom:1px dashed var(--line)}
+.provrow:last-child{border-bottom:0}
+.provrow .f{font-size:13.5px}
+.provrow .f b{font-weight:600}
+.provrow .meta{font-family:var(--mono);font-size:10px;color:#8d8b86;margin-top:4px;letter-spacing:.04em}
+.provrow .act{display:flex;gap:8px;align-items:center;flex-shrink:0}
+
+.thread-item{border:1px solid var(--line);background:#fff;padding:14px 16px;margin-bottom:12px}
+.thread-item .who{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#8d8b86;margin-bottom:6px;display:flex;justify-content:space-between}
+.thread-item p{font-size:13.5px;line-height:1.6}
+.thread-item .foot{margin-top:10px;display:flex;gap:8px;align-items:center}
+
+.export-sheet{border:1.5px solid var(--ink);background:#fff;padding:30px;position:relative;overflow:hidden}
+.export-sheet.draft::after{content:"DRAFT";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:120px;letter-spacing:.1em;color:rgba(179,39,45,.12);transform:rotate(-24deg);pointer-events:none}
+.manifest{font-family:var(--mono);font-size:11.5px;line-height:2;color:var(--graphite)}
+.manifest b{color:var(--ink)}
+
+.mode-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+@media(max-width:980px){.mode-cards{grid-template-columns:1fr}}
+.mode-card{border:1px solid var(--line);background:#fff;padding:20px;cursor:pointer}
+.mode-card.sel{border:1.5px solid var(--chalk);background:var(--chalk-soft)}
+.mode-card h4{font-family:var(--display);font-weight:600;font-size:19px;margin-bottom:8px}
+.mode-card p{font-size:12.5px;color:var(--graphite);line-height:1.6}
+.mode-card .never{margin-top:12px;font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:var(--thread)}
+
+.toast{position:fixed;bottom:26px;right:26px;background:var(--ink);color:#fff;padding:14px 20px;font-size:13px;max-width:340px;box-shadow:0 8px 30px rgba(0,0,0,.25);display:none;z-index:99}
+.toast.on{display:block;animation:pgin .3s ease}
+.statnum{font-family:var(--display);font-size:40px;font-weight:400;line-height:1}
+.statlab{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#8d8b86;margin-top:8px}
+.p1flag{font-family:var(--mono);font-size:10px;letter-spacing:.16em;color:var(--chalk);border:1px solid #b9c6ee;background:var(--chalk-soft);padding:3px 9px;text-transform:uppercase}
+</style>
+</head>
+<body>
+
+<!-- ================= LANDING ================= -->
+<section id="landing">
+  <div class="land-top">
+    <span><span class="dot">Fashion AI</span> · Collection Development</span>
+    <span>PRD v0.1 · Wireframe · Confidential</span>
+  </div>
+  <div class="land-main">
+    <div class="land-copy">
+      <h1>From your mind<br>to the <em>factory.</em></h1>
+    </div>
+    <p class="land-sub">One controlled record for every style, from creative brief through technical package export. AI drafts and flags. A qualified human approves. Nothing unapproved reaches the factory.</p>
+    <div class="land-cta">
+      <button class="btn-enter" onclick="enterApp()">Enter the workspace</button>
+    </div>
+  </div>
+</section>
+
+<!-- ================= APP ================= -->
+<div id="app">
+  <aside>
+    <div class="brand">
+      <div class="wm">Fashion AI</div>
+      <div class="vs">Collection Dev · v0.1</div>
+    </div>
+    <div class="navgrp">Production spine · P0</div>
+    <nav>
+      <button class="active" data-pg="dash" onclick="go('dash',this)">Collection dashboard</button>
+      <button data-pg="cal" onclick="go('cal',this)">Season calendar</button>
+      <button data-pg="style" onclick="go('style',this)">Style record</button>
+      <button data-pg="pack" onclick="go('pack',this)">Tech pack</button>
+      <button data-pg="preflight" onclick="go('preflight',this)">Preflight validation</button>
+      <button data-pg="factory" onclick="go('factory',this)">Factory loop</button>
+      <button data-pg="export" onclick="go('export',this)">Controlled export</button>
+    </nav>
+    <div class="navgrp">Creative · P1 flag</div>
+    <nav>
+      <button data-pg="studio" onclick="go('studio',this)">Creative studio<span class="pri">P1</span></button>
+    </nav>
+    <div class="side-foot">
+      SS27 · Two Rivers Brand<br>
+      Role: Technical designer<br>
+      Synthetic data only<br>
+      <span style="color:#8d8b86">◦ Audit log active</span>
+    </div>
+  </aside>
+
+  <main>
+
+  <!-- DASHBOARD -->
+  <section class="page on" id="pg-dash">
+    <div class="crumb">Workspace / SS27 Womenswear</div>
+    <h2 class="pg">SS27 Womenswear</h2>
+    <p class="pg-sub">One collection, one controlled record. The dashboard answers three questions: what is blocked, what is overdue, and which approval is next. (COL-003)</p>
+
+    <div class="grid3">
+      <div class="card"><div class="statnum">18</div><div class="statlab">Styles in development</div></div>
+      <div class="card"><div class="statnum" style="color:var(--thread)">3</div><div class="statlab">Blocked · needs action</div></div>
+      <div class="card"><div class="statnum" style="color:var(--chalk)">Design</div><div class="statlab">Next approval gate · Week 10</div></div>
+    </div>
+
+    <div class="card">
+      <h3>Stage status</h3>
+      <table>
+        <tr><th>Stage</th><th>Owner</th><th>Due</th><th>Status</th><th></th></tr>
+        <tr><td>3 · Mood sketches and presentation boards</td><td>B. Osei, designer</td><td>Wk 6</td><td><span class="chip c-approved">Complete</span></td><td></td></tr>
+        <tr><td>4 · Concept green light</td><td>M. Chen, creative dir.</td><td>Wk 6</td><td><span class="chip c-approved">Approved</span></td><td class="mono" style="font-size:10px;color:#8d8b86">Gate · signed Wk 6</td></tr>
+        <tr><td>5 · Prototype presentation sketches</td><td>B. Osei, designer</td><td>Wk 10</td><td><span class="chip c-review">In review</span></td><td><button class="btn ghost sm" onclick="go('style',navBtn('style'))">Open styles</button></td></tr>
+        <tr><td>7 · Technical flats and spec draft</td><td>N. Walker, tech design</td><td>Wk 14</td><td><span class="chip c-blocker">Blocked</span></td><td class="mono" style="font-size:10px;color:var(--thread)">Waiting on design gate</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>Overdue and blocked work</h3>
+      <div class="provrow">
+        <div class="f"><b>ST-27-014 Bias slip dress</b> · fabric confirmation missing<div class="meta">Stage 2 dependency · sourcing owner notified · 2 days overdue</div></div>
+        <div class="act"><span class="chip c-blocker">Blocked</span></div>
+      </div>
+      <div class="provrow">
+        <div class="f"><b>ST-27-006 Tailored trouser</b> · colorway mapping incomplete<div class="meta">4 of 6 colorways mapped to BOM · warning escalates at design gate</div></div>
+        <div class="act"><span class="chip c-warn">Warning</span></div>
+      </div>
+      <div class="provrow">
+        <div class="f"><b>ST-27-011 Trench</b> · AI-suggested POMs awaiting review<div class="meta">9 fields Suggested · cannot enter validation until reviewed</div></div>
+        <div class="act"><span class="chip c-review">Needs review</span><button class="btn sm" onclick="go('pack',navBtn('pack'))">Review</button></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CALENDAR -->
+  <section class="page" id="pg-cal">
+    <div class="crumb">SS27 / Season calendar</div>
+    <h2 class="pg">52-week season plan</h2>
+    <p class="pg-sub">The Spring/Summer template lays 15 stages on a measuring tape. Four gates require named approvers. A stage cannot start until upstream approvals are satisfied or an authorized override is recorded. (COL-002, section 4)</p>
+
+    <div class="card">
+      <h3>Stage tape · click a stage</h3>
+      <div class="tape">
+        <div class="tape-inner" id="tape"></div>
+        <div class="ticks" id="ticks"></div>
+      </div>
+      <hr class="seam">
+      <div id="stage-detail" class="kv">
+        <span class="lab">Stage</span><b>Select a stage on the tape above</b>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Approval gates</h3>
+      <table>
+        <tr><th>Gate</th><th>Week</th><th>Named approver</th><th>State</th></tr>
+        <tr><td>Concept green light</td><td>6</td><td>M. Chen, creative director</td><td><span class="chip c-approved">Approved</span></td></tr>
+        <tr><td>Design green light</td><td>10</td><td>M. Chen, creative director</td><td><span class="chip c-review">In review</span></td></tr>
+        <tr><td>Technical package</td><td>28</td><td>N. Walker, technical designer</td><td><span class="chip c-draft">Not started</span></td></tr>
+        <tr><td>Production handoff</td><td>30</td><td>N. Walker + factory reviewer</td><td><span class="chip c-draft">Not started</span></td></tr>
+      </table>
+      <p style="font-size:12px;color:var(--graphite);margin-top:12px">Changes after approval create a new version and return the gate to Changes Requested. Every transition records actor, timestamp, previous state, new state, and reason.</p>
+    </div>
+  </section>
+
+  <!-- STYLE RECORD -->
+  <section class="page" id="pg-style">
+    <div class="crumb">SS27 / Styles / ST-27-011</div>
+    <h2 class="pg">ST-27-011 · Belted trench, silk faille</h2>
+    <p class="pg-sub">One structured, versioned record per style. Sketches, flats, swatches, comments, and technical files stay attached to the correct style and version. (STY-001, STY-002)</p>
+
+    <div class="grid2">
+      <div class="card">
+        <h3>Record</h3>
+        <div class="kv">
+          <span class="lab">Style ID</span><b class="mono">ST-27-011</b><br>
+          <span class="lab">Category</span>Outerwear · woven<br>
+          <span class="lab">Status</span><span class="chip c-review">Technical development</span><br>
+          <span class="lab">Colorways</span>Bone · Ink · Moss (3)<br>
+          <span class="lab">Owner</span>N. Walker, technical designer<br>
+          <span class="lab">Version</span><b class="mono">v4</b> · <button class="btn ghost sm" onclick="toast('Version compare: v3 → v4. 6 field changes, 1 asset replaced. Restore keeps full audit history. (VER-001)')">Compare v3</button>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Linked assets</h3>
+        <table>
+          <tr><th>Asset</th><th>Mode</th><th>Source</th></tr>
+          <tr><td>Presentation sketch, front</td><td><span class="chip c-draft">Pres. sketch</span></td><td><span class="chip c-ai">AI</span> <span class="mono" style="font-size:10px;color:#8d8b86">kept by designer</span></td></tr>
+          <tr><td>Technical flat, front/back</td><td><span class="chip c-review">Tech flat</span></td><td><span class="chip c-human">Human edited</span></td></tr>
+          <tr><td>Silk faille swatch, 19mm</td><td><span class="chip c-draft">Swatch</span></td><td><span class="chip c-human">Uploaded</span></td></tr>
+          <tr><td>Reference: 1968 archive coat</td><td><span class="chip c-draft">Reference</span></td><td><span class="chip c-approved">Rights cleared</span></td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Style timeline</h3>
+      <div class="provrow"><div class="f"><b>Concept approved</b><div class="meta">Wk 6 · M. Chen · gate event, immutable</div></div><span class="chip c-approved">Approved</span></div>
+      <div class="provrow"><div class="f"><b>Presentation sketch selected</b><div class="meta">Wk 8 · B. Osei kept 1 of 4 generated options, annotated collar</div></div><span class="chip c-approved">Logged</span></div>
+      <div class="provrow"><div class="f"><b>AI drafted 22 POMs from category template</b><div class="meta">Wk 11 · model claude-x · all fields entered as Suggested · cost logged</div></div><span class="chip c-review">Needs review</span></div>
+      <div class="provrow"><div class="f"><b>Factory question: sleeve vent construction</b><div class="meta">Wk 12 · open thread · see Factory loop</div></div><span class="chip c-warn">Open</span></div>
+    </div>
+  </section>
+
+  <!-- TECH PACK -->
+  <section class="page" id="pg-pack">
+    <div class="crumb">ST-27-011 / Tech pack v4</div>
+    <h2 class="pg">Tech pack · field provenance</h2>
+    <p class="pg-sub">Every production-critical field carries source, creator, timestamp, AI involvement, and approval state. AI-generated measurements stay Draft until a qualified human approves them. Try approving a field below. (TEC-001, TEC-002, TEC-003)</p>
+
+    <div class="card">
+      <h3>Point of measure · base size 38 · cm</h3>
+      <div class="provrow" id="pom1">
+        <div class="f"><b>POM 04 · Across shoulder: 41.0 · tol ±0.5</b><div class="meta">AI suggested · claude-x · Wk 11 14:22 · source: category template + flat v4</div></div>
+        <div class="act"><span class="chip c-review" id="pom1-chip">Suggested</span><button class="btn sm" id="pom1-btn" onclick="approveField('pom1')">Approve</button></div>
+      </div>
+      <div class="provrow" id="pom2">
+        <div class="f"><b>POM 09 · CB length: 118.5 · tol ±1.0</b><div class="meta">AI suggested · claude-x · Wk 11 14:22 · confidence flagged low, archive reference differs</div></div>
+        <div class="act"><span class="chip c-review" id="pom2-chip">Suggested</span><button class="btn sm" id="pom2-btn" onclick="approveField('pom2')">Approve</button></div>
+      </div>
+      <div class="provrow">
+        <div class="f"><b>POM 12 · Sleeve length from CB: 80.0 · tol ±0.5</b><div class="meta">Human entered · N. Walker · Wk 12 09:10 · measured from fit sample</div></div>
+        <div class="act"><span class="chip c-approved">Approved</span></div>
+      </div>
+      <div class="provrow">
+        <div class="f"><b>POM 17 · Belt length: <span style="color:var(--thread)">missing</span></b><div class="meta">Required for outerwear template · blocks factory export</div></div>
+        <div class="act"><span class="chip c-blocker">Missing</span></div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h3>BOM extract</h3>
+        <table>
+          <tr><th>Item</th><th>Spec</th><th>State</th></tr>
+          <tr><td>Shell</td><td>Silk faille 19mm, 137cm</td><td><span class="chip c-approved">Approved</span></td></tr>
+          <tr><td>Lining</td><td>Cupro twill, Bone only</td><td><span class="chip c-warn">Colorway conflict</span></td></tr>
+          <tr><td>Buttons</td><td>Corozo 32L x6</td><td><span class="chip c-approved">Approved</span></td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <h3>Proposed change · AI cannot overwrite</h3>
+        <p style="font-size:13px;line-height:1.65;color:var(--graphite)">Model review suggests CB length 117.0 based on the resolved factory correction from ST-26-031. The approved value is untouched. The suggestion sits in a proposed-change workflow until a human accepts or dismisses it.</p>
+        <div style="margin-top:12px;display:flex;gap:8px">
+          <button class="btn sm" onclick="toast('Change accepted. New version v5 created. Technical package gate returns to Changes Requested. Audit event recorded. (section 4.1)')">Accept, create v5</button>
+          <button class="btn ghost sm" onclick="toast('Suggestion dismissed. Reason recorded in audit log. Approved value unchanged.')">Dismiss</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PREFLIGHT -->
+  <section class="page" id="pg-preflight">
+    <div class="crumb">ST-27-011 / Preflight</div>
+    <h2 class="pg">Preflight validation</h2>
+    <p class="pg-sub">Deterministic rules run before any model-based review. Critical failures block Approved for Factory and cannot be bypassed without an authorized override and a reason. Run it. (VAL-001, VAL-002, VAL-003)</p>
+
+    <div class="card">
+      <h3>Run preflight · outerwear template · stage 7</h3>
+      <button class="btn" id="pf-run" onclick="runPreflight()">Run preflight</button>
+      <div id="pf-results" style="display:none;margin-top:18px">
+        <div class="provrow"><div class="f"><b>Completeness · POM 17 belt length missing</b><div class="meta">Required field for outerwear at this stage</div></div><span class="chip c-blocker">Blocker</span></div>
+        <div class="provrow"><div class="f"><b>Measurement integrity · duplicate POM 09 in size run</b><div class="meta">Same POM referenced twice with different increments</div></div><span class="chip c-blocker">Blocker</span></div>
+        <div class="provrow"><div class="f"><b>BOM · lining mapped to 1 of 3 colorways</b><div class="meta">Ink and Moss have no lining assignment</div></div><span class="chip c-warn">Warning</span></div>
+        <div class="provrow"><div class="f"><b>Material compatibility · 19mm faille vs. topstitched storm flap</b><div class="meta">Model-based note, supplements rules, never replaces them</div></div><span class="chip c-warn">Advisory</span></div>
+        <div class="provrow"><div class="f"><b>Approval integrity · 2 fields still Suggested</b><div class="meta">Production-critical AI fields lack human approval</div></div><span class="chip c-blocker">Blocker</span></div>
+        <hr class="seam">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <button class="btn" disabled>Approve for factory</button>
+          <span class="mono" style="font-size:11px;color:var(--thread)">3 blockers. Export locked.</span>
+          <button class="btn ghost sm" onclick="toast('Override requires an authorized role and a written reason. Event is immutable and appears on the export manifest. (VAL-003)')">Request override</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Rule families active</h3>
+      <table>
+        <tr><th>Family</th><th>Example</th><th>Severity</th></tr>
+        <tr><td>Completeness</td><td>Missing base size, units, tolerance, closure, label</td><td>Blocker or warning by stage</td></tr>
+        <tr><td>Measurement integrity</td><td>Duplicate POM, impossible negative, mixed units</td><td>Blocker</td></tr>
+        <tr><td>Material compatibility</td><td>Weight or stretch conflicts with silhouette</td><td>Warning, blocker when deterministic</td></tr>
+        <tr><td>Construction logic</td><td>Closure without opening, unresolved stitch reference</td><td>Warning or blocker</td></tr>
+        <tr><td>Version integrity</td><td>Export does not match latest approved pack</td><td>Blocker</td></tr>
+        <tr><td>Approval integrity</td><td>Critical field modified after approval</td><td>Blocker</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- FACTORY -->
+  <section class="page" id="pg-factory">
+    <div class="crumb">ST-27-011 / Factory loop</div>
+    <h2 class="pg">Factory questions and corrections</h2>
+    <p class="pg-sub">The factory reviewer comments on a specific field, page, or measurement. Resolved corrections become reusable validation knowledge so the same mistake is not repeated. (FAC-001, FAC-002)</p>
+
+    <div class="thread-item">
+      <div class="who"><span>Sample room · L. Ferreira</span><span>Wk 12 · on POM 09, flat v4</span></div>
+      <p>Sleeve vent shows a 4-button placket in the flat but construction notes say clean vent. Which is correct for proto 1?</p>
+      <div class="foot"><span class="chip c-warn" id="fq-chip">Answered</span><span class="mono" style="font-size:10px;color:#8d8b86">Answer: clean vent for proto 1, placket deferred to v5</span></div>
+    </div>
+    <div class="thread-item">
+      <div class="who"><span>Factory merchandiser · T. Ma</span><span>Wk 12 · on BOM, lining</span></div>
+      <p>Cupro twill minimum is 300m per color. Ink and Moss quantities fall below minimum at current buy.</p>
+      <div class="foot">
+        <span class="chip c-review" id="fq2-chip">Accepted</span>
+        <button class="btn sm" id="fq2-btn" onclick="resolveThread()">Resolve and capture rule</button>
+      </div>
+    </div>
+    <div class="card" id="captured" style="display:none">
+      <h3>Correction captured as knowledge</h3>
+      <p style="font-size:13px;line-height:1.65">New proposed rule for the outerwear template: <b>warn when any colorway BOM quantity falls below supplier minimum.</b> Classified under Material compatibility. It enters the rule set as Proposed until the technical designer approves it, then future preflights check it automatically.</p>
+    </div>
+
+    <div class="card">
+      <h3>Thread states</h3>
+      <p class="mono" style="font-size:11.5px;letter-spacing:.04em;color:var(--graphite)">Open → Answered → Accepted → Requires Revision → Resolved</p>
+      <p style="font-size:12.5px;color:var(--graphite);margin-top:10px">Every thread stays linked to its style, field, asset, and sample round. Median question-to-answer time feeds pilot analytics with a 20 percent reduction target. (ANA-001, section 9)</p>
+    </div>
+  </section>
+
+  <!-- EXPORT -->
+  <section class="page" id="pg-export">
+    <div class="crumb">ST-27-011 / Export</div>
+    <h2 class="pg">Controlled export</h2>
+    <p class="pg-sub">The system generates a uniquely versioned PDF package. Unapproved packages display DRAFT and omit Production Authorized status. The manifest states exactly what the factory received. (EXP-001, EXP-002)</p>
+
+    <div class="grid2">
+      <div>
+        <div class="export-sheet draft" id="sheet">
+          <div style="font-family:var(--display);font-size:22px;margin-bottom:4px">ST-27-011 · Belted trench</div>
+          <div class="mono" style="font-size:11px;color:#8d8b86;letter-spacing:.1em">TECH PACK EXPORT · v4 · SS27</div>
+          <hr class="seam">
+          <div class="manifest" id="manifest">
+            <b>Status:</b> DRAFT · not production authorized<br>
+            <b>Version:</b> v4 · pack hash a41f…9c2e<br>
+            <b>Validation:</b> 3 blockers, 2 warnings<br>
+            <b>Approvers:</b> technical package gate unsigned<br>
+            <b>Units:</b> cm · base size 38<br>
+            <b>Sections:</b> cover, flats, BOM, POM, construction, colorways
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Why this export is a draft</h3>
+        <p style="font-size:13px;line-height:1.7;color:var(--graphite)">Preflight found three blockers and two production-critical fields are still Suggested. Clearing them and signing the technical package gate flips the export to Approved for Factory with named approvers on the manifest.</p>
+        <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" onclick="approveExport()">Simulate: clear blockers + approve</button>
+          <button class="btn ghost sm" onclick="toast('Every export event is queryable in the audit log: actor, version, validation summary, timestamp. (AUD-001)')">View audit event</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CREATIVE STUDIO -->
+  <section class="page" id="pg-studio">
+    <div class="crumb">SS27 / Creative studio</div>
+    <h2 class="pg">Creative studio <span class="p1flag" style="vertical-align:middle;margin-left:10px">P1 · feature flag</span></h2>
+    <p class="pg-sub">The user explicitly chooses a mode before anything is generated, and every output is labeled by mode. A beautiful image is never mistaken for a production flat. (CRE-002, SKT-001, SKT-002)</p>
+
+    <div class="mode-cards">
+      <div class="mode-card sel" onclick="pickMode(this,'Mood sketch')">
+        <h4>Mood sketch</h4>
+        <p>Loose exploration for atmosphere and direction. Garments, setting, color, and textile references all pull from the same structured brief, not unrelated images.</p>
+        <p class="never">Never enters the tech pack</p>
+      </div>
+      <div class="mode-card" onclick="pickMode(this,'Presentation sketch')">
+        <h4>Presentation sketch</h4>
+        <p>Polished illustration for proportion, flow, and styling. The designer keeps, replaces, annotates, or regenerates any single asset without redoing the board.</p>
+        <p class="never">Never labeled as a technical flat</p>
+      </div>
+      <div class="mode-card" onclick="pickMode(this,'Technical flat')">
+        <h4>Technical flat</h4>
+        <p>Front and back orthographic views. Any construction detail the model cannot verify is labeled unresolved and routed to the technical designer.</p>
+        <p class="never">Still requires technical verification</p>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:18px">
+      <h3>Structured creative brief · feeds every mode</h3>
+      <div class="kv">
+        <span class="lab">Season</span>SS27 · resort-adjacent<br>
+        <span class="lab">Customer</span>Urban, 30 to 45, quality-led<br>
+        <span class="lab">Reference period</span>1968 to 1972, rights-cleared archive only<br>
+        <span class="lab">Color</span>Bone, Ink, Moss, accents open<br>
+        <span class="lab">Exclusions</span>No logo prints, no fur, no metallic finishes<br>
+        <span class="lab">Rights</span><span class="chip c-approved">Licensed + public domain only</span> <span class="mono" style="font-size:10px;color:#8d8b86">metadata alone never authorizes ingestion (REF-002)</span>
+      </div>
+    </div>
+  </section>
+
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+function enterApp(){
+  document.getElementById('landing').classList.add('gone');
+  document.getElementById('app').classList.add('on');
+}
+function go(pg,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+  document.getElementById('pg-'+pg).classList.add('on');
+  document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  window.scrollTo({top:0});
+}
+function navBtn(pg){return document.querySelector('nav button[data-pg="'+pg+'"]')}
+let tt;
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('on');
+  clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),5200);
+}
+function approveField(id){
+  const chip=document.getElementById(id+'-chip'),btn=document.getElementById(id+'-btn');
+  chip.textContent='Approved';chip.className='chip c-approved';btn.remove();
+  toast('Field approved by N. Walker, technical designer. Provenance updated: AI suggested → Human approved. Audit event recorded. (TEC-003)');
+}
+function runPreflight(){
+  document.getElementById('pf-results').style.display='block';
+  document.getElementById('pf-run').textContent='Re-run preflight';
+  toast('Preflight complete. 3 blockers, 2 warnings. Approved for Factory is locked. (VAL-003)');
+}
+function resolveThread(){
+  const chip=document.getElementById('fq2-chip');
+  chip.textContent='Resolved';chip.className='chip c-approved';
+  document.getElementById('fq2-btn').remove();
+  document.getElementById('captured').style.display='block';
+  toast('Correction classified and proposed as a reusable validation rule. (FAC-002)');
+}
+function approveExport(){
+  document.getElementById('sheet').classList.remove('draft');
+  document.getElementById('manifest').innerHTML=
+    '<b>Status:</b> Approved for Factory<br>'+
+    '<b>Version:</b> v5 · pack hash b02d…77aa<br>'+
+    '<b>Validation:</b> 0 blockers, 0 warnings<br>'+
+    '<b>Approvers:</b> N. Walker (technical), M. Chen (design)<br>'+
+    '<b>Units:</b> cm · base size 38<br>'+
+    '<b>Sections:</b> cover, flats, BOM, POM, construction, colorways, grading inputs';
+  toast('Simulated only. In the pilot this requires real cleared blockers, signed gates, and an immutable approval event. (section 12)');
+}
+function pickMode(card,name){
+  document.querySelectorAll('.mode-card').forEach(c=>c.classList.remove('sel'));
+  card.classList.add('sel');
+  toast(name+' mode selected. Outputs will carry this label. Modes never mix. (CRE-002)');
+}
+/* build the tape calendar */
+const stages=[
+ ["1","Trend + concept","1-3",0,"Season, customer, color, silhouette, fabric themes","done"],
+ ["2","Fabric sourcing","2-6",0,"Candidate fabrics, trims, suppliers, constraints","done"],
+ ["3","Mood + boards","3-6",0,"Creative boards and early sketch directions","done"],
+ ["4","Concept green light","6",1,"Approved collection direction","done"],
+ ["5","Presentation sketches","6-10",0,"Selected concepts with details and styling","now"],
+ ["6","Design green light","10",1,"Approved designs for technical development","now"],
+ ["7","Flats + spec draft","10-14",0,"Front/back flats, POMs, BOM, construction draft",""],
+ ["8","First prototype","14-20",0,"Proto sample and factory questions",""],
+ ["9","First fitting","20-22",0,"Fit notes, corrections, decision record",""],
+ ["10","Second prototype","22-26",0,"Revised sample",""],
+ ["11","Second fitting + final","26-28",0,"Approved fit and construction",""],
+ ["12","Final pack + handoff","28-30",1,"Locked pack, grading inputs, factory notes",""],
+ ["13","Production prep","30-34",0,"Materials, quantities, costing, capacity",""],
+ ["14","Bulk production","34-44",0,"Production status and exceptions",""],
+ ["15","QC + delivery","44-52",0,"QC results, issue closure, shipment readiness",""]
+];
+const tape=document.getElementById('tape'),ticks=document.getElementById('ticks');
+stages.forEach(s=>{
+  const d=document.createElement('div');
+  d.className='stage '+(s[3]?'gate ':'')+s[5];
+  d.innerHTML='<div class="wk">WK '+s[2]+'</div><div class="nm">'+s[0]+' · '+s[1]+'</div><div class="bar"></div>';
+  d.onclick=()=>{
+    document.getElementById('stage-detail').innerHTML=
+      '<span class="lab">Stage</span><b>'+s[0]+' · '+s[1]+'</b><br>'+
+      '<span class="lab">Weeks</span>'+s[2]+'<br>'+
+      '<span class="lab">Primary output</span>'+s[4]+'<br>'+
+      '<span class="lab">Rule</span>Starts only when upstream approvals are satisfied or an authorized override is recorded';
+  };
+  tape.appendChild(d);
+  const t=document.createElement('span');t.textContent='·';ticks.appendChild(t);
+});
+</script>
+</body>
+</html>
