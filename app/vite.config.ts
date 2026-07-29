@@ -4,9 +4,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 /**
- * Serves Natalie's wireframe at /wireframe from its real location in frontend/,
- * rather than copying it into app/public — two copies of a design drift, and the
- * one you're looking at is never the one that was edited.
+ * Serves Natalie's wireframe at /wireframe from its real location in frontend/
  */
 function wireframeRoute() {
   const file = resolve(__dirname, '../frontend/fashion_ai_wireframe.html')
@@ -30,7 +28,6 @@ export default defineConfig({
   plugins: [react(), wireframeRoute()],
   server: {
     port: 5173,
-    // Same-origin proxy so the session cookie works without CORS.
     proxy: { '/api': { target: 'http://localhost:8787', changeOrigin: true } },
   },
 })

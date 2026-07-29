@@ -1,6 +1,7 @@
 import { useStore } from '../store'
 import { summarise } from '../../shared/rules.ts'
 import { Badge, FlatCanvas, MoodCanvas, PackBadge, PresentationCanvas, StageBadge } from './ui'
+import { SeasonCalendar } from './SeasonCalendar'
 import type { Style, ValidationFinding } from '../../shared/types.ts'
 
 export function Dashboard({ onOpen }: { onOpen: (id: string) => void }) {
@@ -21,6 +22,8 @@ export function Dashboard({ onOpen }: { onOpen: (id: string) => void }) {
           owner {collection.owner}. Customer: {collection.customer}.
         </p>
       </div>
+
+      <SeasonCalendar />
 
       <div className="grid c4" style={{ marginBottom: 22 }}>
         <div className="card tight">
