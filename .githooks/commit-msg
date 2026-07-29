@@ -1,0 +1,12 @@
+#!/bin/sh
+# Requires a valid Agent trailer when AGENT env var is not set.
+python3 - "$1" << 'PYEOF'
+import re, sys, os
+if os.environ.get("AGENT","").strip():
+    sys.exit(0)
+msg = open(sys.argv[1], encoding="utf-8").read()
+if not re.search(r"^Agent:\s*(JIRO|ANT|BACH|RAPHAEL|NATALIE)\s*$", msg, re.M | re.I):
+    print("Commit rejected: missing trailer 'Agent: <NAME>'")
+    print("Every commit declares who made it: JIRO, ANT, BACH, RAPHAEL, or NATALIE.")
+    sys.exit(1)
+PYEOF
