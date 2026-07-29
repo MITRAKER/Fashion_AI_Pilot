@@ -5,15 +5,24 @@ import * as THREE from 'three'
  * Native React 3D Style Sheet Canvas.
  * Renders the procedural dress form and live XPBD-settled wool coat drape
  * directly inside the React DOM tree without an iframe or bare-specifier issue.
+ *
+ * The viewMode prop drives the camera azimuth smoothly via a ref
+ * so the Three.js scene is only created once, never torn down on view changes.
  */
 export function StyleSheet3DCanvas({ viewMode = 'front' }: { viewMode?: 'front' | 'side' | 'back' }) {
   const mountRef = useRef<HTMLDivElement>(null)
+  const viewRef = useRef(viewMode)
+
+  // Keep ref in sync so the animation loop can read it without rebuilding the scene.
+  useEffect(() => {
+    viewRef.current = viewMode
+  }, [viewMode])
 
   useEffect(() => {
     const mount = mountRef.current
     if (!mount) return
 
-    // 1. Renderer setup
+    // 1. Renderer setup — match stylesheet.html exactly
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     renderer.outputColorSpace = THREE.SRGBColorSpace
@@ -21,7 +30,6 @@ export function StyleSheet3DCanvas({ viewMode = 'front' }: { viewMode?: 'front' 
     renderer.toneMappingExposure = 1.15
     renderer.shadowMap.enabled = true
     renderer.shadowMap.type = THREE.PCFSoftShadowMap
-
     mount.appendChild(renderer.domElement)
 
     // 2. Scene & Camera
@@ -50,7 +58,7 @@ export function StyleSheet3DCanvas({ viewMode = 'front' }: { viewMode?: 'front' 
 
     scene.environment = envMap
 
-    // Lights
+    // Document lighting — match stylesheet.html: lifted fill, pulled-back rim, clean white
     const key = new THREE.DirectionalLight(0xffffff, 2.2)
     key.position.set(-2.6, 3.8, 2.2)
     key.castShadow = true
@@ -69,7 +77,7 @@ export function StyleSheet3DCanvas({ viewMode = 'front' }: { viewMode?: 'front' 
 
     scene.add(new THREE.HemisphereLight(0xffffff, 0xd8d8de, 1.15))
 
-    // Ground shadow catcher
+    // Ground shadow catcher — contact only, no visible plane
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(6, 6),
       new THREE.ShadowMaterial({ opacity: 0.16 })
@@ -79,7 +87,7 @@ export function StyleSheet3DCanvas({ viewMode = 'front' }: { viewMode?: 'front' 
     ground.receiveShadow = true
     scene.add(ground)
 
-    // 4. Procedural Dress Form
+    // 4. Procedural Dress Form — exact profile from the showroom version
     const profile: [number, number][] = [
       [0.052, 0.720], [0.088, 0.690], [0.150, 0.652], [0.146, 0.600],
       [0.153, 0.545], [0.141, 0.485], [0.121, 0.418], [0.132, 0.360],
@@ -219,9 +227,9 @@ export function StyleSheet3DCanvas({ viewMode = 'front' }: { viewMode?: 'front' 
       garmentGeo.computeVertexNormals()
     }
 
-    // Pre-settle garment drape 4 seconds
+    // Pre-settle garment drape — match stylesheet.html settle(6.0)
     const settleStep = 1 / 120
-    for (let t = 0; t < 4.0; t += settleStep) stepGarment(settleStep)
+    for (let t = 0; t < 6.0; t += settleStep) stepGarment(settleStep)
 
     const woolMat = new THREE.MeshPhysicalMaterial({
       color: 0xc4b49a, envMap, envMapIntensity: 0.95, roughness: 0.68, metalness: 0.0, clearcoat: 0.08
@@ -235,9 +243,9 @@ export function StyleSheet3DCanvas({ viewMode = 'front' }: { viewMode?: 'front' 
     garmentMesh.receiveShadow = true
     scene.add(garmentMesh)
 
-    // 6. Camera Azimuth & Animation Loop
+    // 6. Camera Azimuth & Animation Loop — exact values from stylesheet.html
     const VIEWS: Record<string, number> = { front: 0, side: -Math.PI / 2, back: Math.PI }
-    let targetAz = VIEWS[viewMode] ?? 0
+    let targetAz = VIEWS[viewRef.current] ?? 0
     let az = targetAz
     const RADIUS = 2.55, HEIGHT = 0.40
 
@@ -246,24 +254,32 @@ export function StyleSheet3DCanvas({ viewMode = 'front' }: { viewMode?: 'front' 
       camera.lookAt(0, 0.24, 0)
     }
 
+    // Drag to rotate — exact behavior from stylesheet.html
     let dragging = false, lastX = 0
-    const onMouseDown = (e: MouseEvent) => { dragging = true; lastX = e.clientX }
-    const onMouseUp = () => { dragging = false }
-    const onMouseMove = (e: MouseEvent) => {
+    const onPointerDown = (e: PointerEvent) => { dragging = true; lastX = e.clientX }
+    const onPointerUp = () => { dragging = false }
+    const onPointerMove = (e: PointerEvent) => {
       if (!dragging) return
       targetAz -= (e.clientX - lastX) * 0.007
       lastX = e.clientX
     }
-    mount.addEventListener('mousedown', onMouseDown)
-    window.addEventListener('mouseup', onMouseUp)
-    window.addEventListener('mousemove', onMouseMove)
+    mount.addEventListener('pointerdown', onPointerDown)
+    window.addEventListener('pointerup', onPointerUp)
+    window.addEventListener('pointermove', onPointerMove)
 
     let animId: number
     const clock = new THREE.Clock()
+
     function tick() {
       animId = requestAnimationFrame(tick)
       const dt = Math.min(clock.getDelta(), 1 / 30)
-      az += (targetAz - az) * 0.09
+
+      // Read the latest viewMode from the ref (no effect rebuild needed)
+      const desiredAz = VIEWS[viewRef.current] ?? targetAz
+      // Only snap targetAz to button if user isn't dragging
+      if (!dragging) targetAz = desiredAz
+
+      az += (targetAz - az) * 0.09   // eased, never snapped — matches stylesheet.html
       updateCamera()
       stepGarment(dt)
       renderer.render(scene, camera)
@@ -273,12 +289,14 @@ export function StyleSheet3DCanvas({ viewMode = 'front' }: { viewMode?: 'front' 
     return () => {
       cancelAnimationFrame(animId)
       resizeObserver.disconnect()
-      mount.removeEventListener('mousedown', onMouseDown)
-      window.removeEventListener('mouseup', onMouseUp)
-      window.removeEventListener('mousemove', onMouseMove)
+      mount.removeEventListener('pointerdown', onPointerDown)
+      window.removeEventListener('pointerup', onPointerUp)
+      window.removeEventListener('pointermove', onPointerMove)
+      renderer.dispose()
+      pmrem.dispose()
       if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement)
     }
-  }, [viewMode])
+  }, []) // Empty deps — scene created once, viewMode read from ref
 
   return <div ref={mountRef} style={{ width: '100%', height: '100%', cursor: 'grab' }} />
 }

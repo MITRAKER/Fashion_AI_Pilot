@@ -4,14 +4,18 @@ interface IntroSplashProps {
   onEnter: () => void
 }
 
+/**
+ * Runway Intro Splash — full-screen cinematic landing with the user's actual
+ * screen recording as ambient backdrop and epic uplifting soundtrack.
+ * Files served from /public via Vite (or /Fashion_AI_Pilot/ on GH Pages).
+ */
 export function IntroSplash({ onEnter }: IntroSplashProps) {
   const [isPlayingAudio, setIsPlayingAudio] = useState(false)
-  const [videoSrc, setVideoSrc] = useState<string>(
-    'https://assets.mixkit.co/videos/preview/mixkit-fashion-model-walking-on-a-runway-41225-large.mp4'
-  )
-  const [audioSrc, setAudioSrc] = useState<string>(
-    'https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3?filename=fashion-show-chill-114421.mp3'
-  )
+
+  /* resolve base path so assets work on both localhost and GitHub Pages */
+  const base = window.location.pathname.includes('/Fashion_AI_Pilot') ? '/Fashion_AI_Pilot/' : '/'
+  const [videoSrc, setVideoSrc] = useState<string>(`${base}intro-video.mp4`)
+  const [audioSrc, setAudioSrc] = useState<string>(`${base}intro-music.mp3`)
 
   const audioRef = useRef<HTMLAudioElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
