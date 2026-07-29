@@ -25,6 +25,7 @@ function wireframeRoute() {
 }
 
 export default defineConfig({
+  base: './',
   plugins: [react(), wireframeRoute()],
   server: {
     port: 5173,
