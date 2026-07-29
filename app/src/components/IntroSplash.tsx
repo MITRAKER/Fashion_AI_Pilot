@@ -98,7 +98,7 @@ export function IntroSplash({ onEnter }: IntroSplashProps) {
         animation: 'fadeIn 1.2s ease-out'
       }}>
         <div style={{
-          fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: '.32em', color: 'var(--gold, #d4af37)',
+          fontFamily: "'Orbitron', var(--mono)", fontSize: 11, letterSpacing: '.32em', color: 'var(--gold, #d4af37)',
           textTransform: 'uppercase', marginBottom: 16,
           textShadow: '0 1px 8px rgba(0,0,0,0.5)'
         }}>
@@ -106,14 +106,14 @@ export function IntroSplash({ onEnter }: IntroSplashProps) {
         </div>
 
         <h1 style={{
-          fontFamily: 'var(--display, Georgia, serif)', fontSize: 56, fontWeight: 300,
-          letterSpacing: '.04em', margin: '0 0 16px 0', textShadow: '0 2px 16px rgba(0,0,0,0.6)'
+          fontFamily: "'Orbitron', sans-serif", fontSize: 52, fontWeight: 700,
+          letterSpacing: '.06em', margin: '0 0 16px 0', textShadow: '0 2px 16px rgba(0,0,0,0.6)'
         }}>
           Atelier Pilot
         </h1>
 
         <p style={{
-          fontFamily: 'var(--font-sans)', fontSize: 15, color: 'rgba(255,255,255,0.92)',
+          fontFamily: "'Exo 2', sans-serif", fontSize: 15, color: 'rgba(255,255,255,0.92)',
           lineHeight: 1.6, marginBottom: 36, fontWeight: 300,
           textShadow: '0 1px 8px rgba(0,0,0,0.5)'
         }}>
@@ -129,7 +129,8 @@ export function IntroSplash({ onEnter }: IntroSplashProps) {
           }}
           className="btn gold"
           style={{
-            padding: '14px 42px', fontSize: 13, letterSpacing: '.18em', textTransform: 'uppercase',
+            fontFamily: "'Orbitron', sans-serif",
+            padding: '14px 42px', fontSize: 12, letterSpacing: '.14em', textTransform: 'uppercase',
             background: 'linear-gradient(135deg, #e6ca65 0%, #b8932b 100%)', color: '#0f0f12',
             border: 'none', borderRadius: 4, fontWeight: 600, cursor: 'pointer',
             boxShadow: '0 8px 30px rgba(212, 175, 55, 0.4)', transition: 'all 0.3s ease'
