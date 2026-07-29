@@ -1,0 +1,3 @@
+#!/bin/sh
+# Harness enforcement. Do not remove.
+python3 harness/check_push.py || exit 1

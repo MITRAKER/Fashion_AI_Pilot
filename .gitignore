@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Local database — synthetic demo data, regenerated on first run by server/seed.ts.
+# Never commit this: once real brand data is loaded it must not reach a repository.
+*.db
+*.db-wal
+*.db-shm
+
+# Local PRD renders (PDF + page images). Derived from the .docx that is committed.
+tmp/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Showroom
+showroom/node_modules/
+showroom/renders/
+showroom/dist/
