@@ -25,7 +25,7 @@ function wireframeRoute() {
 }
 
 export default defineConfig({
-  base: './',
+  base: process.env.NODE_ENV === 'production' ? '/Fashion_AI_Pilot/' : '/',
   plugins: [react(), wireframeRoute()],
   server: {
     port: 5173,
