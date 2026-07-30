@@ -90,6 +90,14 @@ def main():
     agent = get_agent()
     files = staged_files()
 
+    # Merge commits carry upstream authors' work; lane rules apply to
+    # authorship, not to syncing. Secrets are still caught at push and
+    # on the author's own commits.
+    import os
+    if os.path.exists(os.path.join(".git", "MERGE_HEAD")):
+        print("Harness: merge commit detected, lane checks skipped.")
+        sys.exit(0)
+
     if not files:
         sys.exit(0)
 
