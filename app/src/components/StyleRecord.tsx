@@ -7,11 +7,14 @@ import {
 import type { GateKey, PackField, SketchMode, Style, ValidationFinding } from '../../shared/types.ts'
 import type { DraftResult } from '../../server/ai/provider.ts'
 
-type Tab = 'creative' | 'pack' | 'preflight' | 'approvals' | 'factory' | 'export'
+import { StyleSheetEmbed } from './StyleSheetEmbed'
+import { MuseumSearch } from './MuseumSearch'
+
+type Tab = 'stylesheet' | 'creative' | 'pack' | 'preflight' | 'approvals' | 'factory' | 'export'
 
 export function StyleRecord({ styleId, onBack }: { styleId: string; onBack: () => void }) {
   const { collection, preflight } = useStore()
-  const [tab, setTab] = useState<Tab>('creative')
+  const [tab, setTab] = useState<Tab>('stylesheet')
   const style = collection?.styles.find(s => s.id === styleId)
   const findings = preflight[styleId] ?? []
   const { blockers, warnings } = summarise(findings)
@@ -44,6 +47,7 @@ export function StyleRecord({ styleId, onBack }: { styleId: string; onBack: () =
 
       <div className="tabs">
         {([
+          ['stylesheet', '3D Style sheet', 'LIVE'],
           ['creative', 'Creative modes', style.assets.length],
           ['pack', 'Tech pack', style.fields.length + style.poms.length],
           ['preflight', 'Preflight', blockers || warnings],
@@ -54,12 +58,18 @@ export function StyleRecord({ styleId, onBack }: { styleId: string; onBack: () =
           <button key={k} className={`tab ${tab === k ? 'active' : ''}`} onClick={() => setTab(k as Tab)}>
             {label}
             {count !== '' && count !== 0 && (
-              <span className={`count ${k === 'preflight' && blockers ? 'blocker' : ''}`}>{count}</span>
+              <span className={`count ${k === 'preflight' && blockers ? 'blocker' : k === 'stylesheet' ? 'ai' : ''}`}>{count}</span>
             )}
           </button>
         ))}
       </div>
 
+      {tab === 'stylesheet' && (
+        <>
+          <StyleSheetEmbed styleId={style.id} />
+          <MuseumSearch />
+        </>
+      )}
       {tab === 'creative' && <Creative style={style} />}
       {tab === 'pack' && <TechPack style={style} />}
       {tab === 'preflight' && <Preflight findings={findings} />}

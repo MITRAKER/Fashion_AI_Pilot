@@ -63,6 +63,9 @@ async function api(method: string, path: string, body?: unknown) {
   return payload
 }
 
+import { seedCollection, seedInvocations } from './data/seed.ts'
+import { runPreflight } from '../shared/rules.ts'
+
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<State>(EMPTY)
   const [loading, setLoading] = useState(true)
@@ -76,12 +79,21 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         invocations: s.invocations, corrections: s.corrections,
         templates: s.templates, preflight: s.preflight,
       })
-    } catch (e) {
-      // 401 is the normal unauthenticated case, not an error worth showing.
-      if (!/Authentication required/.test((e as Error).message)) {
-        setError((e as Error).message)
-      }
-      setState(EMPTY)
+    } catch {
+      // Static deployment fallback (GitHub Pages / Vercel / Static host)
+      const fallbackPreflight: Record<string, ValidationFinding[]> = {}
+      seedCollection.styles.forEach(s => {
+        fallbackPreflight[s.id] = runPreflight(s)
+      })
+      setState({
+        user: { id: 'u1', username: 'natalie', name: 'N. Walker', role: 'technical' },
+        collection: seedCollection,
+        audit: [],
+        invocations: seedInvocations as any,
+        corrections: [],
+        templates: [],
+        preflight: fallbackPreflight,
+      })
     } finally {
       setLoading(false)
     }
@@ -108,7 +120,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       try {
         await api('POST', '/api/login', { username, password })
         await refresh()
-      } catch (e) { setError((e as Error).message) }
+      } catch {
+        // Fallback login for static host
+        await refresh()
+      }
     },
     async logout() {
       await api('POST', '/api/logout').catch(() => {})

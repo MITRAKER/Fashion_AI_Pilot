@@ -4,6 +4,7 @@ import { Dashboard } from './components/Dashboard'
 import { StyleRecord } from './components/StyleRecord'
 import { Governance } from './components/Governance'
 import { Login } from './components/Login'
+import { IntroSplash } from './components/IntroSplash'
 import { summarise } from '../shared/rules.ts'
 import { Badge } from './components/ui'
 
@@ -12,6 +13,7 @@ type View = { page: 'collection' } | { page: 'style'; id: string } | { page: 'go
 function Shell() {
   const { collection, user, preflight, loading, error, clearError, logout } = useStore()
   const [view, setView] = useState<View>({ page: 'collection' })
+  const [showSplash, setShowSplash] = useState(true)
 
   if (loading) return <div className="empty-state" style={{ paddingTop: 120 }}>Loading workspace…</div>
   if (!user || !collection) return <Login />
@@ -19,7 +21,9 @@ function Shell() {
   const totals = summarise(collection.styles.flatMap(s => preflight[s.id] ?? []))
 
   return (
-    <div className="app-frame">
+    <>
+      {showSplash && <IntroSplash onEnter={() => setShowSplash(false)} />}
+      <div className="app-frame">
       <div className="app">
         <aside className="sidebar">
           <div className="brand">
@@ -136,6 +140,7 @@ function Shell() {
         </main>
       </div>
     </div>
+    </>
   )
 }
 
