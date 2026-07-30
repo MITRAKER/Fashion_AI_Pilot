@@ -1,136 +1,127 @@
 import * as THREE from 'three'
+import { makeWool } from './materials/library.js'
 
 /**
- * Stylized garment matching the sketch reference silhouette.
+ * A coat draped on the dress form.
+ *
+ * The cloth starts as a cylinder wrapped around the body with a gap at centre front
+ * (a coat opens), pinned along the shoulder ring, then relaxes under gravity with
+ * collision against the form. That is what produces a real drape: the fall is
+ * computed against the body, not modelled by hand.
  */
 export function createGarment(envMap, form) {
-  const garment = new THREE.Group()
+  const COLS = 56          // around the body
+  const ROWS = 40          // shoulder to hem
+  const OPENING = 0.62     // radians of gap at centre front — it is a coat, it opens
+  const TOP = 0.598        // sits below the shoulder so the form's shoulder line reads
+  const LENGTH = 0.74      // mid-calf
+  const START_R = 0.178    // starts close to the body; the fall creates the volume
 
-  const fabric = new THREE.MeshPhysicalMaterial({
-    color: new THREE.Color('#E8E0D0'),
-    envMap,
-    envMapIntensity: 0.9,
-    roughness: 0.55,
-    metalness: 0,
-    clearcoat: 0.06,
-  })
-  fabric.sheen = 0.62
-  fabric.sheenColor = new THREE.Color('#E2CFAE')
-  fabric.sheenRoughness = 0.56
+  const geometry = new THREE.PlaneGeometry(1, 1, COLS - 1, ROWS - 1)
+  const pos = geometry.attributes.position
+  const count = pos.count
 
-  const beltMat = new THREE.MeshPhysicalMaterial({
-    color: new THREE.Color('#D6CCB8'),
-    envMap,
-    envMapIntensity: 0.85,
-    roughness: 0.58,
-    metalness: 0,
-    clearcoat: 0.08,
-  })
-  beltMat.sheen = 0.45
-  beltMat.sheenColor = new THREE.Color('#DCC8A8')
-  beltMat.sheenRoughness = 0.6
+  const cur = new Float32Array(count * 3)
+  const prev = new Float32Array(count * 3)
+  const pinned = new Uint8Array(count)
 
-  // Main dress body with collar, fitted waist, and flared asymmetric hem.
-  const profile = [
-    [0.060, 0.652], [0.105, 0.620], [0.205, 0.572], [0.228, 0.492],
-    [0.188, 0.355], [0.142, 0.250], [0.166, 0.156], [0.228, 0.090],
-    [0.310, -0.008], [0.402, -0.152], [0.428, -0.214],
-  ].map(([r, y]) => new THREE.Vector2(r, y))
-  const bodyGeo = new THREE.LatheGeometry(profile, 128)
-  bodyGeo.scale(1, 1, 0.76)
+  const idx = (r, c) => r * COLS + c
+  const span = Math.PI * 2 - OPENING
 
-  const p = bodyGeo.attributes.position
-  for (let i = 0; i < p.count; i++) {
-    const x = p.getX(i)
-    const y = p.getY(i)
-    const z = p.getZ(i)
-    const a = Math.atan2(z, x)
-
-    // Belted waist shaping.
-    const waistFalloff = Math.exp(-Math.pow((y - 0.22) / 0.12, 2))
-    const waistScale = 1 - waistFalloff * 0.17
-
-    // Asymmetric lower skirt dip for the wrapped drape read.
-    const lower = THREE.MathUtils.clamp((0.10 - y) / 0.28, 0, 1)
-    const asym = Math.sin(a - 0.85) * 0.046 * lower
-
-    p.setXYZ(i, x * waistScale, y - asym, z * waistScale)
-  }
-  bodyGeo.computeVertexNormals()
-
-  const body = new THREE.Mesh(bodyGeo, fabric)
-  body.castShadow = true
-  body.receiveShadow = true
-  garment.add(body)
-
-  // Wrapped asymmetric front panel crossing from right shoulder to left hip.
-  const wrapGeo = new THREE.PlaneGeometry(0.11, 0.31, 12, 18)
-  const wp = wrapGeo.attributes.position
-  for (let i = 0; i < wp.count; i++) {
-    const x = wp.getX(i)
-    const y = wp.getY(i)
-    const curve = Math.sin((y + 0.16) * 6.4) * 0.007
-    const sweep = (y + 0.16) * 0.05
-    wp.setXYZ(i, x + sweep, y, curve)
-  }
-  wrapGeo.computeVertexNormals()
-  const wrapPanel = new THREE.Mesh(wrapGeo, fabric)
-  wrapPanel.position.set(0.045, 0.38, 0.228)
-  wrapPanel.rotation.set(-0.06, 0.14, -0.52)
-  wrapPanel.castShadow = true
-  wrapPanel.receiveShadow = true
-  garment.add(wrapPanel)
-
-  function makeSleeve(side = 1) {
-    const sleeveGeo = new THREE.CylinderGeometry(0.13, 0.055, 0.44, 28, 24, true)
-    const sp = sleeveGeo.attributes.position
-    for (let i = 0; i < sp.count; i++) {
-      const x = sp.getX(i)
-      const y = sp.getY(i)
-      const z = sp.getZ(i)
-      const t = (y + 0.22) / 0.44
-      const puff = Math.exp(-Math.pow((t - 0.35) / 0.34, 2)) * 0.34
-      const gather = Math.exp(-Math.pow((t - 0.92) / 0.12, 2)) * -0.18
-      const scale = 1 + puff + gather
-      sp.setXYZ(i, x * scale, y, z * (scale * 0.9))
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const i = idx(r, c)
+      const a = -Math.PI / 2 + OPENING / 2 + (c / (COLS - 1)) * span
+      const y = TOP - (r / (ROWS - 1)) * LENGTH
+      // Slight A-line from the start so the solver has somewhere to fall into.
+      // Symmetry is the enemy of drape: a perfectly even ring relaxes into a cone.
+      // Seed each column with a little extra cloth so folds have somewhere to start.
+      const fold = Math.sin(c * 2.3) * 0.006 + Math.sin(c * 0.7) * 0.009
+      const rad = START_R + (r / (ROWS - 1)) * 0.115 + fold * (r / (ROWS - 1))
+      const o = i * 3
+      cur[o] = Math.cos(a) * rad
+      cur[o + 1] = y
+      cur[o + 2] = Math.sin(a) * rad * 0.8
+      prev[o] = cur[o]; prev[o + 1] = cur[o + 1]; prev[o + 2] = cur[o + 2]
+      if (r === 0) pinned[i] = 1          // shoulder ring holds the coat up
     }
-    sleeveGeo.computeVertexNormals()
-
-    const sleeve = new THREE.Mesh(sleeveGeo, fabric)
-    sleeve.position.set(0.24 * side, 0.40, 0.02)
-    sleeve.rotation.set(0.18, 0.04 * side, side > 0 ? -0.97 : 0.97)
-    sleeve.castShadow = true
-    sleeve.receiveShadow = true
-
-    const cuff = new THREE.Mesh(
-      new THREE.TorusGeometry(0.06, 0.015, 16, 42),
-      beltMat,
-    )
-    cuff.rotation.x = Math.PI / 2
-    cuff.position.set(0.355 * side, 0.205, 0.04)
-    cuff.scale.set(1.12, 1, 0.82)
-    cuff.castShadow = true
-    garment.add(cuff)
-
-    garment.add(sleeve)
   }
 
-  makeSleeve(1)
-  makeSleeve(-1)
+  const constraints = []
+  const link = (a, b, stiff = 1) => {
+    const d = Math.hypot(
+      cur[a * 3] - cur[b * 3], cur[a * 3 + 1] - cur[b * 3 + 1], cur[a * 3 + 2] - cur[b * 3 + 2])
+    constraints.push([a, b, d, stiff])
+  }
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (c + 1 < COLS) link(idx(r, c), idx(r, c + 1))
+      if (r + 1 < ROWS) link(idx(r, c), idx(r + 1, c))
+      if (c + 1 < COLS && r + 1 < ROWS) link(idx(r, c), idx(r + 1, c + 1), 0.7)
+      if (c > 0 && r + 1 < ROWS) link(idx(r, c), idx(r + 1, c - 1), 0.7)
+      if (r + 2 < ROWS) link(idx(r, c), idx(r + 2, c), 0.10)   // bend: low, so cloth folds
+      if (c + 2 < COLS) link(idx(r, c), idx(r, c + 2), 0.08)
+    }
 
-  const belt = new THREE.Mesh(
-    new THREE.TorusGeometry(0.205, 0.013, 14, 84),
-    beltMat,
-  )
-  belt.rotation.x = Math.PI / 2
-  belt.position.y = 0.208
-  belt.scale.set(1, 1, 0.76)
-  belt.castShadow = true
-  garment.add(belt)
+    // Stitch the center-back seam; closure is at left side seam, not center back.
+    constraints.push([idx(r, 0), idx(r, COLS - 1), 0, 1])
+  }
+
+  const GRAVITY = -5.2
+  const DAMP = 0.965
+  const ITER = 6
+  let time = 0
+
+  function step(dt) {
+    const h = Math.min(dt, 1 / 60)
+    const h2 = h * h
+    for (let i = 0; i < count; i++) {
+      if (pinned[i]) continue
+      const o = i * 3
+      for (let a = 0; a < 3; a++) {
+        const v = (cur[o + a] - prev[o + a]) * DAMP
+        prev[o + a] = cur[o + a]
+        cur[o + a] += v + (a === 1 ? GRAVITY * h2 : 0)
+      }
+    }
+
+    for (let k = 0; k < ITER; k++) {
+      for (let n = 0; n < constraints.length; n++) {
+        const [a, b, rest, stiff] = constraints[n]
+        const ao = a * 3, bo = b * 3
+        const dx = cur[bo] - cur[ao], dy = cur[bo + 1] - cur[ao + 1], dz = cur[bo + 2] - cur[ao + 2]
+        const d = Math.hypot(dx, dy, dz) || 1e-6
+        const f = ((d - rest) / d) * 0.5 * stiff
+        const mx = dx * f, my = dy * f, mz = dz * f
+        if (!pinned[a]) { cur[ao] += mx; cur[ao + 1] += my; cur[ao + 2] += mz }
+        if (!pinned[b]) { cur[bo] -= mx; cur[bo + 1] -= my; cur[bo + 2] -= mz }
+      }
+      // Body collision — the whole reason the drape looks right.
+      for (let i = 0; i < count; i++) {
+        if (pinned[i]) continue
+        const o = i * 3
+        const p = form.project(cur[o], cur[o + 1], cur[o + 2])
+        if (p) { cur[o] = p[0]; cur[o + 2] = p[2] }
+      }
+    }
+
+    for (let i = 0; i < count; i++) pos.setXYZ(i, cur[i * 3], cur[i * 3 + 1], cur[i * 3 + 2])
+    pos.needsUpdate = true
+    geometry.computeVertexNormals()
+    time += h
+  }
+
+  const mesh = new THREE.Mesh(geometry, makeWool(envMap))
+  mesh.castShadow = true
+  mesh.receiveShadow = true
 
   return {
-    object3D: garment,
-    update() {},
-    settle() {},
+    object3D: mesh,
+    update: step,
+    /** Advance without drawing so a capture is of settled cloth, never mid-fall. */
+    settle(seconds = 4.0) {
+      const h = 1 / 120
+      for (let t = 0; t < seconds; t += h) step(h)
+    },
   }
 }
