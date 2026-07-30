@@ -62,6 +62,9 @@ export function createGarment(envMap, form) {
       if (r + 2 < ROWS) link(idx(r, c), idx(r + 2, c), 0.10)   // bend: low, so cloth folds
       if (c + 2 < COLS) link(idx(r, c), idx(r, c + 2), 0.08)
     }
+
+    // Stitch the center-back seam; closure is at left side seam, not center back.
+    constraints.push([idx(r, 0), idx(r, COLS - 1), 0, 1])
   }
 
   const GRAVITY = -5.2

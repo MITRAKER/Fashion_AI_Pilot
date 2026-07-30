@@ -191,6 +191,9 @@ export function StyleSheet3DCanvas({ viewMode = 'front' }: { viewMode?: 'front' 
         if (r + 2 < ROWS) link(idx(r, c), idx(r + 2, c), 0.10)
         if (c + 2 < COLS) link(idx(r, c), idx(r, c + 2), 0.08)
       }
+
+      // Stitch the center-back seam; closure is at left side seam, not center back.
+      constraints.push([idx(r, 0), idx(r, COLS - 1), 0, 1])
     }
 
     function stepGarment(dt: number) {
