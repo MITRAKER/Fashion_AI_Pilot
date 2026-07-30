@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atelier · Runway</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{ --gold:#e6be85; --ink:#050507; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;background:var(--ink);overflow:hidden}
+  canvas{display:block}
+
+  .hud{position:fixed;inset:0;pointer-events:none;font-family:'IBM Plex Mono',monospace;color:#fff}
+
+  .tl{position:absolute;top:26px;left:30px}
+  .tl .lab{font-size:9.5px;letter-spacing:.24em;text-transform:uppercase;color:rgba(255,255,255,.45)}
+  .tl .val{font-family:'Bodoni Moda',serif;font-size:46px;line-height:1;letter-spacing:.02em;
+           font-variant-numeric:tabular-nums;text-shadow:0 2px 30px rgba(230,190,133,.35)}
+  .tl .combo{font-size:15px;color:var(--gold);letter-spacing:.14em;margin-top:4px;height:18px}
+
+  .rating{position:absolute;top:34%;left:50%;transform:translateX(-50%);
+          font-family:'Bodoni Moda',serif;font-size:58px;letter-spacing:.06em;
+          color:var(--gold);opacity:0;transition:opacity .18s;
+          text-shadow:0 0 44px rgba(230,190,133,.6)}
+
+  .beat{position:absolute;bottom:44px;left:50%;margin-left:-7px;width:14px;height:14px;
+        border-radius:50%;background:var(--gold);box-shadow:0 0 26px rgba(230,190,133,.8)}
+
+  .tr{position:absolute;top:28px;right:30px;text-align:right;
+      font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.4);line-height:1.9}
+
+  .hint{position:absolute;inset:0;display:grid;place-items:center;background:rgba(5,5,7,.72);
+        transition:opacity .7s;text-align:center}
+  .hint.gone{opacity:0;pointer-events:none}
+  .hint h1{font-family:'Bodoni Moda',serif;font-size:64px;font-weight:400;letter-spacing:.03em;margin-bottom:14px}
+  .hint p{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:rgba(255,255,255,.55);line-height:2.4}
+  .hint .key{color:var(--gold)}
+</style>
+</head>
+<body>
+  <div class="hud">
+    <div class="tl">
+      <div class="lab">Score</div>
+      <div class="val" id="score">000000</div>
+      <div class="combo" id="combo"></div>
+    </div>
+
+    <div class="rating" id="rating"></div>
+    <div class="beat" id="beat"></div>
+
+    <div class="tr">
+      Two Rivers · SS27<br>
+      Look 04 · Bias Panel Denim<br>
+      120 BPM
+    </div>
+
+    <div class="hint" id="hint">
+      <div>
+        <h1>Runway</h1>
+        <p>
+          <span class="key">Space</span> or <span class="key">click</span> to strike a pose<br>
+          Hit it on the beat · combo multiplies the score
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/runway-main.js"></script>
+</body>
+</html>

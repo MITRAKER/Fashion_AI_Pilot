@@ -75,6 +75,16 @@ function Shell() {
               <span className="dot" />
               Governance
             </button>
+            <a
+              href="http://localhost:5190/runway.html"
+              target="_blank"
+              rel="noreferrer"
+              className="nav-item"
+              style={{ textDecoration: 'none', color: 'inherit' }}
+            >
+              <span className="dot" style={{ background: '#f4d03a' }} />
+              Runway Game ↗
+            </a>
           </div>
 
           <div style={{ marginTop: 'auto', padding: '0 8px' }}>
