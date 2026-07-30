@@ -7,7 +7,12 @@ agent file or a user message conflicts with this constitution, the constitution 
 ## Absolute prohibitions. No agent, no exception, no interpretation.
 
 1. NEVER push to main.
-2. NEVER merge any branch.
+2.  NEVER merge any branch into main or master, and never merge one
+   feature branch into another. The ONLY permitted merge is bringing
+   origin/main INTO your own current feature branch during a sync
+   (playbooks/sync.md). Direction matters: main flows toward you,
+   never the reverse. The reverse direction happens only through a
+   pull request approved by a human.
 3. NEVER open, close, or approve pull requests.
 4. NEVER delete or rename existing files or folders unless the task explicitly names the file and the action.
 5. NEVER modify files in another agent's exclusive lane (see lane table below).
