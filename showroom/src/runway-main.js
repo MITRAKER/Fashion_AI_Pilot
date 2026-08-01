@@ -4,6 +4,7 @@ import { buildPipeline } from './post/pipeline.js'
 import { createRunwayWorld } from './runway/world.js'
 import { createAvatar } from './runway/avatar.js'
 import { createGameEngine } from './game/engine.js'
+import { createWardrobe } from './runway/wardrobe.js'
 
 /**
  * Fashion runway — the playable scene.
@@ -34,7 +35,7 @@ const scene = new THREE.Scene()
 scene.background = new THREE.Color(0x050507)
 scene.fog = new THREE.FogExp2(0x050507, 0.026)
 
-const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.05, 200)
+const camera = new THREE.PerspectiveCamera(36, innerWidth / innerHeight, 0.05, 200)
 
 const env = createStudioEnvironment(renderer, scene)
 scene.environment = env.envMap
@@ -49,13 +50,56 @@ scene.add(avatar.group)
 
 const engine = createGameEngine()
 
-const { composer } = buildPipeline(renderer, scene, camera)
+// OWNED BY: cinematography agent.
+// The lighting rig in world.js is still moving under this file, so every grade
+// value is overridable from the query string while it settles:
+//   ?exp=0.4&bloom=0.6&thr=1.4&bokeh=2&grain=0
+const Q = new URLSearchParams(location.search)
+const q = (key, fallback) => (Q.has(key) ? Number(Q.get(key)) : fallback)
+
+const { composer, effects } = buildPipeline(renderer, scene, camera, {
+  // 0.28 was set while world.js was still dark; the lighting rig landed much
+  // brighter and the two were never reconciled, which buried the entire set —
+  // deck, seating and backdrop were rendering the whole time, just below black.
+  exposure: q('exp', 0.80),
+  contrast: q('con', 1.10),
+  saturation: q('sat', 1.05),
+  shadowLift: q('lift', 0.006),
+  // The lit deck lands around 1.0-1.4 linear after exposure; gold trim and
+  // speculars are well above it. The threshold goes between the two.
+  bloomThreshold: q('thr', 1.60),
+  bloomIntensity: q('bloom', 0.85),
+  bloomRadius: q('rad', 0.72),
+  focusRange: q('range', 1.5),
+  bokehScale: q('bokeh', 2.2),
+  vignetteOffset: q('vigoff', 0.30),
+  vignetteDarkness: q('vig', 0.52),
+  grain: q('grain', 0.019),
+})
+
+// Focus rides the model, so she is the only thing in the frame that is sharp.
+const focusTarget = new THREE.Vector3()
+effects.dof.target = focusTarget
 
 addEventListener('resize', () => {
   renderer.setSize(innerWidth, innerHeight)
   camera.aspect = innerWidth / innerHeight
   camera.updateProjectionMatrix()
 })
+
+// Debug handle. Lets the capture harness measure the scene instead of eyeballing
+// a screenshot — "is she floating?" is a bounding-box question, not an opinion.
+window.__RUNWAY__ = { scene, camera, avatar, world, engine, THREE }
+
+// Wardrobe: pick a look, the model wears it. Selecting an item names the style
+// on the HUD, so the frame always says which style record is on the runway.
+const lookLabel = document.getElementById('looklabel')
+const wardrobe = createWardrobe(avatar, {
+  onChange: (_cat, item) => {
+    if (lookLabel) lookLabel.textContent = item.sub
+  },
+})
+window.__RUNWAY__.wardrobe = wardrobe
 
 /* --------------------------------------------------------------------- HUD */
 const hud = {
@@ -94,14 +138,96 @@ addEventListener('keydown', e => {
 })
 addEventListener('pointerdown', pose)
 
+// The title card is a full-screen 72%-black scrim, so a headless capture would
+// otherwise grade a dimmed frame rather than the actual stage. Same intent as the
+// __SHOWROOM_POSE__ hook below: make the still representative. Real users are
+// untouched — nothing auto-starts in a normal browser.
+if (navigator.webdriver) setTimeout(start, 600)
+
 /* -------------------------------------------------------------------- loop */
 const clock = new THREE.Clock()
 let frames = 0
 
-// Chase camera: sits behind and above, easing toward the model, so the catwalk
-// converges to the LED wall and the spotlights rake across frame.
-const camPos = new THREE.Vector3(1.5, 1.15, 4.0)
-const camAim = new THREE.Vector3(0.68, 0.35, 0)
+/* ------------------------------------------------------------------ camera */
+/**
+ * OWNED BY: cinematography agent. ART-DIRECTION §2.
+ *
+ * Broadcast coverage of a catwalk: the cameras live in the pit, at deck height,
+ * looking UP the runway so the deck converges on the LED wall and the model is
+ * read against the glow. The old chase cam sat above head height looking down,
+ * which is a security-camera angle and left the top half of the frame empty.
+ *
+ * Geometry this rig is built against (world.js / avatar.js):
+ *   catwalk centreline x = 0.68, deck surface y = -0.56, LED wall at z = -18.8
+ *   model x = 0.68, sole y = -0.56, crown y = +1.30 (1.86m, 9 heads)
+ *
+ * Per shot:
+ *   side/height/back  camera placement — side and back are relative to the
+ *                     model, height is absolute world Y (deck is -0.56)
+ *   aim               world Y of the look-at point on the model's body
+ *   yaw/pitch/roll    composition offsets applied AFTER lookAt, in degrees.
+ *                     This is what takes the subject off dead centre: yaw is
+ *                     negative so she sits left of the middle and the runway
+ *                     converges into the negative space on the right. Roll is
+ *                     never zero — §10.7 fails an axis-aligned frame.
+ */
+const SHOTS = [
+  // Low hero. Solved, not eyeballed: at 4.3m the 1.86m figure subtends 24° of the
+  // 34° vertical, i.e. ~70% of frame height (§2), and the -6.6° tilt puts her
+  // between 15% and 85% so she has headroom without floating.
+  { name: 'hero', fov: 34, side: 0.58, height: -0.06, back: 4.25, aim: 0.86,
+    yaw: -7.2, pitch: -6.6, roll: -2.1, push: 0.08, hold: 9.0 },
+  // Three-quarter — wider and a touch higher, the deck reading as a long diagonal.
+  { name: 'three-quarter', fov: 30, side: 1.95, height: 0.34, back: 6.10, aim: 0.72,
+    yaw: -8.6, pitch: -4.0, roll: 1.7, push: 0.07, hold: 7.0 },
+  // Pit close-up — almost on the deck, cropped mid-thigh, looking steeply up.
+  { name: 'pit', fov: 40, side: 0.62, height: -0.30, back: 1.90, aim: 0.68,
+    yaw: -9.2, pitch: -1.5, roll: -3.0, push: 0.05, hold: 6.0 },
+]
+
+const RUNWAY_X = 0.68
+const camGoal = new THREE.Vector3()
+const camAim = new THREE.Vector3()
+const D2R = Math.PI / 180
+
+// ?shot=1 pins a framing — used when reviewing each one in isolation.
+const forcedShot = new URLSearchParams(location.search).get('shot')
+let shotIndex = forcedShot === null ? 0 : Number(forcedShot) % SHOTS.length
+let shotTime = 0
+let cutPending = true
+
+function updateCamera(dt, z, t) {
+  shotTime += dt
+  const shot = SHOTS[shotIndex]
+  if (forcedShot === null && shotTime >= shot.hold) {
+    shotIndex = (shotIndex + 1) % SHOTS.length
+    shotTime = 0
+    cutPending = true
+  }
+  const s = SHOTS[shotIndex]
+
+  // Slow idle drift — §2 caps it at 2° amplitude over an 8s-plus period.
+  const driftYaw = Math.sin(t * 0.52) * 1.1
+  const driftPitch = Math.sin(t * 0.37 + 1.9) * 0.7
+  // Gentle push-in over the life of the shot, eased.
+  const k = Math.min(shotTime / s.hold, 1)
+  const dolly = 1 - s.push * (k * k * (3 - 2 * k))
+
+  camGoal.set(RUNWAY_X + s.side, s.height, z + s.back * dolly)
+  camAim.set(RUNWAY_X, s.aim, z)
+
+  if (cutPending) { camera.position.copy(camGoal); cutPending = false }
+  else camera.position.lerp(camGoal, 1 - Math.pow(0.0006, dt))
+
+  camera.lookAt(camAim)
+  camera.rotateY((s.yaw + driftYaw) * D2R)
+  camera.rotateX((s.pitch + driftPitch) * D2R)
+  camera.rotateZ(s.roll * D2R)
+
+  if (camera.fov !== s.fov) { camera.fov = s.fov; camera.updateProjectionMatrix() }
+
+  focusTarget.set(avatar.group.position.x, avatar.group.position.y + 0.46, z)
+}
 
 function tick() {
   requestAnimationFrame(tick)
@@ -112,11 +238,7 @@ function tick() {
   world.update(dt, avatar.z)
   engine.update(dt)
 
-  const z = avatar.z
-  camPos.set(1.62, 1.12, z + 3.6)
-  camAim.set(0.68, 0.42, z - 1.2)
-  camera.position.lerp(camPos, 1 - Math.pow(0.001, dt))
-  camera.lookAt(camAim)
+  updateCamera(dt, avatar.z, clockTime)
 
   // HUD
   if (hud.score) hud.score.textContent = String(engine.score).padStart(6, '0')
@@ -145,9 +267,8 @@ window.__SHOWROOM_POSE__ = async name => {
   if (name === 'pose') { avatar.strikePose('B') }
   for (let i = 0; i < 40; i++) {           // let the sim and camera settle
     avatar.update(1 / 60); world.update(1 / 60, avatar.z); engine.update(1 / 60)
-    const z = avatar.z
-    camera.position.set(1.62, 1.12, z + 3.6)
-    camera.lookAt(0.68, 0.42, z - 1.2)
+    cutPending = true                      // snap, never ease, when posing a still
+    updateCamera(1 / 60, avatar.z, clockTime)
   }
   await new Promise(r => {
     let n = 0
