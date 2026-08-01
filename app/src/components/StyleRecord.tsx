@@ -177,6 +177,7 @@ function TechPack({ style }: { style: Style }) {
         critical fields stay <i>Suggested</i> until a named human approves them.
       </div>
 
+      <ProposedChanges style={style} />
       <DraftPanel style={style} />
 
       <div className="card" style={{ padding: 0, marginBottom: 20 }}>
@@ -318,6 +319,91 @@ function TechPack({ style }: { style: Style }) {
         </div>
       </div>
     </>
+  )
+}
+
+/* --------------------------------------------------- proposed changes (§6) */
+
+/**
+ * PRD §6 — AI may not change a value a person owns. It also must not just throw
+ * the suggestion away. The change is parked here with both values visible, and a
+ * named human rules on it; accepting creates a new version rather than editing
+ * the approved pack in place.
+ */
+function ProposedChanges({ style }: { style: Style }) {
+  const { proposals, acceptProposal, dismissProposal, user } = useStore()
+  const mine = proposals.filter(p => p.styleId === style.id && p.state === 'Open')
+  const canRule = user?.role === 'technical' || user?.role === 'owner'
+
+  if (mine.length === 0) return null
+
+  return (
+    <div className="card" style={{ marginBottom: 20, borderColor: 'rgba(74,83,196,.3)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+        <h3 style={{ marginBottom: 0 }}>Proposed change</h3>
+        <Badge tone="ai">AI cannot overwrite</Badge>
+        <span className="muted mono" style={{ marginLeft: 'auto', fontSize: 11 }}>
+          {mine.length} awaiting a decision
+        </span>
+      </div>
+      <p className="sub">
+        The approved value is untouched. Accepting applies the change and creates a new
+        version; the technical gate reopens, because the factory was told something else.
+      </p>
+
+      {mine.map(p => (
+        <div key={p.id} style={{
+          padding: '14px 0', borderTop: '1px solid var(--line)',
+        }}>
+          <div style={{ display: 'flex', gap: 9, alignItems: 'center', marginBottom: 9 }}>
+            <b style={{ fontSize: 13, fontWeight: 500 }}>{p.fieldLabel}</b>
+            <span className="mono muted" style={{ fontSize: 10.5 }}>from {p.source}</span>
+          </div>
+
+          <div className="grid c2" style={{ gap: 12, marginBottom: 10 }}>
+            <div style={{
+              padding: '10px 12px', borderRadius: 'var(--r-sm)', background: 'var(--panel-2)',
+              border: '1px solid var(--line)',
+            }}>
+              <div className="muted" style={{
+                fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: 4,
+              }}>Approved — unchanged</div>
+              <div style={{ fontSize: 13 }}>{p.currentValue || <i className="muted">empty</i>}</div>
+            </div>
+            <div style={{
+              padding: '10px 12px', borderRadius: 'var(--r-sm)', background: 'var(--ai-bg)',
+              border: '1px solid rgba(74,83,196,.28)',
+            }}>
+              <div style={{
+                fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase',
+                marginBottom: 4, color: 'var(--ai)',
+              }}>Proposed</div>
+              <div style={{ fontSize: 13 }}>{p.proposedValue}</div>
+            </div>
+          </div>
+
+          {p.rationale && <div className="muted" style={{ fontSize: 11.5, marginBottom: 11 }}>
+            {p.rationale}
+          </div>}
+
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              className="btn gold sm" disabled={!canRule}
+              title={canRule ? '' : 'Only a technical designer or owner may rule on a proposal'}
+              onClick={() => void acceptProposal(style.id, p.id)}
+            >
+              Accept, create v{style.version + 1}
+            </button>
+            <button
+              className="btn sm" disabled={!canRule}
+              onClick={() => void dismissProposal(style.id, p.id)}
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
   )
 }
 

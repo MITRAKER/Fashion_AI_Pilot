@@ -2,7 +2,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { randomUUID, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
 import type {
   Asset, AuditEvent, BomRow, Collection, ExportRecord, FactoryCorrection, FactoryMessage,
-  Gate, ModelInvocation, PackField, PomRow, Role, Stage, Style, TrimRow, User,
+  Gate, ModelInvocation, PackField, PomRow, Proposal, Role, Stage, Style, TrimRow, User,
 } from '../shared/types.ts'
 
 const SCHEMA = `
@@ -77,6 +77,12 @@ CREATE TABLE IF NOT EXISTS corrections (
   id TEXT PRIMARY KEY, style_id TEXT NOT NULL, thread_id TEXT NOT NULL,
   kind TEXT, target TEXT, message TEXT, severity TEXT,
   accepted INTEGER, accepted_by TEXT, accepted_at TEXT);
+
+CREATE TABLE IF NOT EXISTS proposals (
+  id TEXT PRIMARY KEY, style_id TEXT NOT NULL, field_id TEXT NOT NULL,
+  field_label TEXT, current_value TEXT, proposed_value TEXT, rationale TEXT,
+  source TEXT, created_by TEXT, created_at TEXT,
+  state TEXT NOT NULL, decided_by TEXT, decided_at TEXT, decision_reason TEXT);
 
 CREATE TABLE IF NOT EXISTS category_signoff (
   key TEXT PRIMARY KEY, signed_by TEXT NOT NULL, signed_at TEXT NOT NULL);
@@ -225,6 +231,14 @@ export const readCorrections = (db: DB): FactoryCorrection[] =>
     id: r.id, styleId: r.style_id, threadId: r.thread_id, kind: r.kind, target: r.target,
     message: r.message, severity: r.severity, accepted: !!r.accepted,
     acceptedBy: r.accepted_by, acceptedAt: r.accepted_at,
+  }))
+
+export const readProposals = (db: DB): Proposal[] =>
+  (db.prepare('SELECT * FROM proposals ORDER BY created_at DESC').all() as any[]).map(r => ({
+    id: r.id, styleId: r.style_id, fieldId: r.field_id, fieldLabel: r.field_label,
+    currentValue: r.current_value, proposedValue: r.proposed_value, rationale: r.rationale,
+    source: r.source, createdBy: r.created_by, createdAt: r.created_at, state: r.state,
+    decidedBy: r.decided_by, decidedAt: r.decided_at, decisionReason: r.decision_reason,
   }))
 
 export const readInvocations = (db: DB): ModelInvocation[] =>

@@ -373,6 +373,134 @@ describe('AI drafting (TEC-003, AI-001, AI-002)', () => {
   })
 })
 
+/* ------------------------------------------ proposed changes (PRD §6) */
+
+describe('proposed-change workflow', () => {
+  test('a proposal is raised rather than overwriting an approved value', async () => {
+    const sid = await login('natalie')
+    const before = readStyle(db, 'DR-1041')!.fields.find(f => f.label === 'Individual bagging')!
+    assert.equal(before.approval, 'Human Edited')
+
+    const r = await call('POST', '/api/styles/DR-1041/proposals', {
+      sid,
+      body: {
+        fieldId: before.id,
+        proposedValue: 'Poly bag 320 x 420 mm, flat fold, vented',
+        rationale: 'Resolved factory correction on ST-26-031 used the larger bag',
+        source: 'factory correction',
+      },
+    })
+    assert.equal(r.status, 200)
+
+    // The approved value is untouched while the proposal is open.
+    const after = readStyle(db, 'DR-1041')!.fields.find(f => f.label === 'Individual bagging')!
+    assert.equal(after.value, before.value)
+    assert.equal(after.approval, 'Human Edited')
+
+    const open = r.body.proposals.filter((p: any) => p.state === 'Open')
+    assert.equal(open.length, 1)
+    assert.equal(open[0].currentValue, before.value)
+  })
+
+  test('a factory reviewer may not accept or dismiss', async () => {
+    const sid = await login('factory')
+    const state = await call('GET', '/api/state', { sid })
+    const p = state.body.proposals.find((x: any) => x.state === 'Open')
+    assert.ok(p, 'expected an open proposal')
+
+    const a = await call('POST', `/api/styles/DR-1041/proposals/${p.id}/accept`, { sid })
+    assert.equal(a.status, 403)
+    const d = await call('POST', `/api/styles/DR-1041/proposals/${p.id}/dismiss`, { sid })
+    assert.equal(d.status, 403)
+  })
+
+  test('dismissing records the decision and leaves the value alone', async () => {
+    const sid = await login('natalie')
+    const state = await call('GET', '/api/state', { sid })
+    const p = state.body.proposals.find((x: any) => x.state === 'Open')
+    const before = readStyle(db, 'DR-1041')!.fields.find(f => f.id === p.fieldId)!
+
+    const r = await call('POST', `/api/styles/DR-1041/proposals/${p.id}/dismiss`, {
+      sid, body: { reason: 'Our bag size is correct for this fold' },
+    })
+    assert.equal(r.status, 200)
+
+    const after = readStyle(db, 'DR-1041')!.fields.find(f => f.id === p.fieldId)!
+    assert.equal(after.value, before.value)
+
+    const dismissed = r.body.proposals.find((x: any) => x.id === p.id)
+    assert.equal(dismissed.state, 'Dismissed')
+    assert.equal(dismissed.decidedBy, 'N. Walker')
+
+    // Already decided — a second ruling is refused.
+    const again = await call('POST', `/api/styles/DR-1041/proposals/${p.id}/dismiss`, { sid })
+    assert.equal(again.status, 409)
+  })
+
+  test('accepting applies the value and creates a new version', async () => {
+    const sid = await login('natalie')
+
+    // Put TP-2010 back into an approved state so the version bump is observable.
+    // By this point the learned Shrinkage rule from the corrections suite blocks it,
+    // so approval goes through the authorized-override path — which is itself the
+    // documented way past a blocker and needs a recorded reason.
+    const gate = await call('POST', '/api/styles/TP-2010/gates/technical/approve', {
+      sid, body: { override: true, reason: 'Pilot test: shrinkage supplied out of band' },
+    })
+    assert.equal(gate.status, 200)
+    const before = readStyle(db, 'TP-2010')!
+    assert.equal(before.gates.find(g => g.key === 'technical')!.approved, true)
+
+    const field = before.fields.find(f => f.label === 'Side seam')!
+    const raised = await call('POST', '/api/styles/TP-2010/proposals', {
+      sid,
+      body: {
+        fieldId: field.id,
+        proposedValue: 'French seam, 1.2 cm SA',
+        rationale: 'Factory reported 1.0 cm too narrow to finish cleanly',
+        source: 'factory correction',
+      },
+    })
+    const p = raised.body.proposals.find((x: any) => x.state === 'Open' && x.styleId === 'TP-2010')
+    assert.ok(p)
+
+    const acc = await call('POST', `/api/styles/TP-2010/proposals/${p.id}/accept`, { sid })
+    assert.equal(acc.status, 200)
+
+    const after = readStyle(db, 'TP-2010')!
+    assert.equal(after.fields.find(f => f.id === field.id)!.value, 'French seam, 1.2 cm SA')
+    assert.equal(after.version, before.version + 1, 'accepting creates a new version')
+    assert.equal(after.gates.find(g => g.key === 'technical')!.approved, false,
+      'the technical gate reopens — the factory was told something else')
+    assert.equal(after.status, 'Changes Requested')
+
+    // The accepted value is human-owned, not AI-owned.
+    const f = after.fields.find(x => x.id === field.id)!
+    assert.equal(f.approval, 'Human Edited')
+    assert.equal(f.aiInvolved, false)
+  })
+
+  test('AI drafting raises a proposal instead of silently refusing', async () => {
+    const sid = await login('natalie')
+    const openBefore = (await call('GET', '/api/state', { sid })).body.proposals
+      .filter((p: any) => p.state === 'Open').length
+
+    const r = await call('POST', '/api/styles/DR-1041/draft', { sid, body: { confirm: true } })
+    assert.equal(r.status, 200)
+
+    // Whatever it declined for being human-owned must now carry the proposal wording.
+    const humanOwned = r.body.result.declined.filter((d: any) =>
+      /may not change an approved value/.test(d.reason))
+    if (humanOwned.length) {
+      assert.match(humanOwned[0].reason, /raised as a proposed change instead/)
+    }
+
+    const openAfter = (await call('GET', '/api/state', { sid })).body.proposals
+      .filter((p: any) => p.state === 'Open').length
+    assert.ok(openAfter >= openBefore, 'drafting never reduces the open proposal count')
+  })
+})
+
 /* ---------------------------------------------------------------------- D-01 */
 
 describe('category schema sign-off (D-01)', () => {

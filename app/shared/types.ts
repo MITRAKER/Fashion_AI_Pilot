@@ -132,6 +132,36 @@ export interface FactoryCorrection {
   acceptedAt: string | null
 }
 
+// --- Proposed changes (PRD §6) ---------------------------------------------
+
+export type ProposalState = 'Open' | 'Accepted' | 'Dismissed'
+
+/**
+ * A proposed change to a value a human already owns.
+ *
+ * PRD §6: "Prevent AI from changing an approved value without a visible
+ * proposed-change workflow." Silent overwrite is forbidden and outright refusal
+ * loses the information — so the suggestion is parked here until a person rules
+ * on it, and accepting creates a new version rather than editing in place.
+ */
+export interface Proposal {
+  id: string
+  styleId: string
+  fieldId: string
+  fieldLabel: string
+  currentValue: string
+  proposedValue: string
+  rationale: string
+  /** Where it came from: a model, or a resolved factory correction on another style. */
+  source: string
+  createdBy: string
+  createdAt: string
+  state: ProposalState
+  decidedBy: string | null
+  decidedAt: string | null
+  decisionReason: string | null
+}
+
 // --- Auth ------------------------------------------------------------------
 
 export type Role = 'owner' | 'creative' | 'technical' | 'factory' | 'viewer'

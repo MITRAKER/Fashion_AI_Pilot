@@ -30,22 +30,28 @@ export function StyleSheet3DCanvas({ viewMode = 'front' }: { viewMode?: 'front' 
     renderer.toneMappingExposure = 1.15
     renderer.shadowMap.enabled = true
     renderer.shadowMap.type = THREE.PCFSoftShadowMap
+    renderer.domElement.style.display = 'block'
+    renderer.domElement.style.width = '100%'
+    renderer.domElement.style.height = '100%'
     mount.appendChild(renderer.domElement)
 
     // 2. Scene & Camera
     const scene = new THREE.Scene()
-    const camera = new THREE.PerspectiveCamera(30, mount.clientWidth / Math.max(mount.clientHeight, 1), 0.05, 50)
+    const camera = new THREE.PerspectiveCamera(30, 1, 0.05, 50)
 
     function resize() {
       if (!mount) return
       const w = mount.clientWidth, h = mount.clientHeight
+      if (w === 0 || h === 0) return  // skip if not laid out yet
       renderer.setSize(w, h, false)
-      camera.aspect = w / Math.max(h, 1)
+      camera.aspect = w / h
       camera.updateProjectionMatrix()
     }
     const resizeObserver = new ResizeObserver(resize)
     resizeObserver.observe(mount)
+    // Deferred initial resize — wait for CSS layout to compute concrete dimensions
     resize()
+    requestAnimationFrame(resize)
 
     // 3. Studio Lighting & Environment Map
     const pmrem = new THREE.PMREMGenerator(renderer)
@@ -298,5 +304,5 @@ export function StyleSheet3DCanvas({ viewMode = 'front' }: { viewMode?: 'front' 
     }
   }, []) // Empty deps — scene created once, viewMode read from ref
 
-  return <div ref={mountRef} style={{ width: '100%', height: '100%', cursor: 'grab' }} />
+  return <div ref={mountRef} style={{ position: 'absolute', inset: 0, cursor: 'grab' }} />
 }
