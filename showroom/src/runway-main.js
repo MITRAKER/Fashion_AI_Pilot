@@ -5,6 +5,7 @@ import { createRunwayWorld } from './runway/world.js'
 import { createAvatar } from './runway/avatar.js'
 import { createGameEngine } from './game/engine.js'
 import { createWardrobe } from './runway/wardrobe.js'
+import { createHotspots } from './runway/hotspots.js'
 
 /**
  * Fashion runway — the playable scene.
@@ -100,6 +101,11 @@ const wardrobe = createWardrobe(avatar, {
   },
 })
 window.__RUNWAY__.wardrobe = wardrobe
+
+// Click a garment part, read its spec. Markers track the rig and carry the same
+// approval state the tech pack does, so an unresolved detail looks unresolved here.
+const hotspots = createHotspots(avatar, camera, renderer)
+window.__RUNWAY__.hotspots = hotspots
 
 /* --------------------------------------------------------------------- HUD */
 const hud = {
@@ -254,6 +260,7 @@ function tick() {
     hud.beat.style.opacity = String(0.35 + (1 - phase) * 0.65)
   }
 
+  hotspots.update()
   composer.render(dt)
 
   if (++frames === 60) window.__SHOWROOM_READY__ = true
