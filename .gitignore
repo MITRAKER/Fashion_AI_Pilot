@@ -30,3 +30,6 @@ Thumbs.db
 showroom/node_modules/
 showroom/renders/
 showroom/dist/
+
+# Vite dep cache
+.vite/
