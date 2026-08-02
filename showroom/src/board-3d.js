@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { createStudioEnvironment } from './env/studio.js'
 import { createDressForm } from './form.js'
 import { createDress, NECKLINES } from './dress.js'
+import { SHOULDER, BUST } from './details.js'
 
 /**
  * The concept, worn.
@@ -50,6 +51,8 @@ export function createBodyPreview(mount) {
 
   let garment = null
   let currentNeckline = 'sweetheart'
+  let shoulderN = 0   // 0 = none
+  let bustN = 0
   let az = 0.35, targetAz = 0.35
 
   function resize() {
@@ -150,6 +153,19 @@ export function createBodyPreview(mount) {
       drape: fabric?.drape,
       neckline: currentNeckline,
     })
+    // Detail treatments build ON the garment, so a choice is visible on the body
+    // rather than being a thumbnail in a menu.
+    const ctx = {
+      radiusAt: y => {
+        const q = form.project(0.0005, y, 0)
+        return q ? Math.hypot(q[0], q[2]) : 0.12
+      },
+    }
+    const sh = SHOULDER.find(s => s.n === shoulderN)
+    const bu = BUST.find(s => s.n === bustN)
+    if (sh) garment.object3D.add(sh.build(material, ctx))
+    if (bu) garment.object3D.add(bu.build(material, ctx))
+
     scene.add(garment.object3D)
     garment.settle(5.0)          // capture-safe: hung cloth, never mid-fall
   }
@@ -172,6 +188,7 @@ export function createBodyPreview(mount) {
     setSource,
     necklines: Object.entries(NECKLINES).map(([k, v]) => ({ key: k, name: v.name })),
     setNeckline(k) { currentNeckline = k },
+    setDetail(kind, n) { if (kind === 'shoulder') shoulderN = n; else bustN = n },
     setView: a => { targetAz = a },
     /** Exact settled silhouette — pixels are ambiguous, geometry is not. */
     measure() {

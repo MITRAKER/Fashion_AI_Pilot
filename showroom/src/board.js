@@ -2,6 +2,7 @@ import { extractPalette } from './palette.js'
 import { analyseImage, suggestFabrics, suggestSilhouettes } from './fabric-engine.js'
 import { createBodyPreview } from './board-3d.js'
 import { consultSpecialists } from './specialists.js'
+import { SHOULDER, BUST, recommend } from './details.js'
 
 /**
  * Artwork → capsule collection board.
@@ -253,6 +254,30 @@ function renderEngine(img, palette, sourceName) {
       <p class="why"><em>Chosen because</em> ${f.why}</p>
       <p class="use"><em>Use for</em> ${f.use}</p>
     </div>`).join('')
+
+  const rec = recommend(a)
+  const tile = (kind, d, on) => `
+    <button class="dtl${on ? ' rec' : ''}" data-kind="${kind}" data-n="${d.n}">
+      <span class="dn">${d.n}</span><b>${d.name}</b>
+      <small>${d.construction}</small><em>${d.note}</em>
+      ${on ? '<span class="tag">suits this source</span>' : ''}
+    </button>`
+  el('detail-why').textContent = rec.why
+  el('shoulder-lib').innerHTML =
+    '<button class="dtl none on" data-kind="shoulder" data-n="0"><b>None</b></button>' +
+    SHOULDER.map(d => tile('shoulder', d, rec.shoulder.includes(d.n))).join('')
+  el('bust-lib').innerHTML =
+    '<button class="dtl none on" data-kind="bust" data-n="0"><b>None</b></button>' +
+    BUST.map(d => tile('bust', d, rec.bust.includes(d.n))).join('')
+  document.querySelectorAll('.dtl').forEach(btn => {
+    btn.onclick = () => {
+      const kind = btn.dataset.kind
+      preview?.setDetail(kind, Number(btn.dataset.n))
+      document.querySelectorAll('.dtl[data-kind="' + kind + '"]')
+        .forEach(x => x.classList.toggle('on', x === btn))
+      wear()
+    }
+  })
 
   el('shapes').innerHTML = shapes.map(s => `
     <div class="shape"><b>${s.name}</b><p>${s.note}</p></div>`).join('')

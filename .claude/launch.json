@@ -5,13 +5,22 @@
       "name": "atelier-api",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "app", "run", "server"],
-      "port": 8787
+      "port": 8787,
+      "autoPort": false
     },
     {
       "name": "atelier",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "app", "run", "dev"],
-      "port": 5173
+      "port": 5173,
+      "autoPort": false
+    },
+    {
+      "name": "showroom",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "showroom", "run", "dev"],
+      "port": 5174,
+      "autoPort": false
     }
   ]
 }

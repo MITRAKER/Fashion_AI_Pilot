@@ -148,6 +148,24 @@
       text-transform:uppercase;border-radius:99px;border:1px solid var(--line);
       background:#fff;color:var(--graphite);cursor:pointer}
   .pt.on{background:var(--chalk);border-color:var(--chalk);color:#fff}
+
+  .dwhy{font-size:12.5px;color:var(--graphite);line-height:1.7;margin-bottom:14px;max-width:78ch}
+  .lib-h{font-family:var(--mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase;
+         color:var(--chalk);margin:14px 0 8px;font-weight:400}
+  .lib{display:grid;grid-template-columns:repeat(auto-fill,minmax(235px,1fr));gap:10px}
+  .dtl{position:relative;text-align:left;background:#fff;border:1px solid var(--line);
+       border-radius:4px;padding:12px 13px;cursor:pointer;transition:.14s;color:var(--ink)}
+  .dtl:hover{border-color:var(--chalk)}
+  .dtl.on{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink) inset}
+  .dtl.rec{background:#F7F9FF}
+  .dtl.none{display:grid;place-items:center;min-height:64px;color:var(--graphite)}
+  .dtl .dn{position:absolute;top:9px;right:10px;font-family:var(--mono);font-size:10px;color:var(--graphite)}
+  .dtl b{display:block;font-size:13px;margin-bottom:5px}
+  .dtl small{display:block;font-size:10.5px;color:var(--graphite);line-height:1.55}
+  .dtl em{display:block;font-style:normal;font-size:10px;color:var(--chalk);line-height:1.55;margin-top:6px}
+  .dtl .tag{display:inline-block;margin-top:8px;font-family:var(--mono);font-size:8px;
+            letter-spacing:.1em;text-transform:uppercase;background:var(--chalk);color:#fff;
+            padding:2px 7px;border-radius:99px}
 </style>
 </head>
 <body>
@@ -206,6 +224,13 @@
     <div class="sec">
       <h3>Materials it could be made in, and why <span class="hint-t">— click one to wear it</span></h3>
       <div id="fabrics-why"></div>
+    </div>
+
+    <div class="sec">
+      <h3>Detail library — click a treatment to build it on the dress</h3>
+      <p id="detail-why" class="dwhy"></p>
+      <h4 class="lib-h">Shoulder</h4><div id="shoulder-lib" class="lib"></div>
+      <h4 class="lib-h">Bust</h4><div id="bust-lib" class="lib"></div>
     </div>
 
     <div class="sec">
