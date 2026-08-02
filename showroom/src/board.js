@@ -1,5 +1,6 @@
 import { extractPalette } from './palette.js'
 import { analyseImage, suggestFabrics, suggestSilhouettes } from './fabric-engine.js'
+import { createBodyPreview } from './board-3d.js'
 
 /**
  * Artwork → capsule collection board.
@@ -47,6 +48,33 @@ const FABRICS = [
 ]
 
 const el = id => document.getElementById(id)
+
+/** The 3D preview is created once and re-dressed, never rebuilt. */
+let preview = null
+let currentFabrics = []
+let currentPalette = []
+let chosenFabric = 0
+let chosenColour = 0
+
+function wear() {
+  const f = currentFabrics[chosenFabric]
+  const c = currentPalette[chosenColour]
+  if (!f || !c) return
+  if (!preview) {
+    const mount = el('view3d')
+    mount.querySelector('.spin')?.remove()
+    preview = createBodyPreview(mount)
+    window.__PREVIEW__ = preview
+  }
+  preview.dress(f, c.hex)
+  el('worn-name').textContent = f.name
+  el('worn-col').textContent = `${c.name} · ${c.hex}`
+  el('worn-phys').textContent =
+    `bend ${f.drape?.bend ?? '—'} · weight ${Math.abs(f.drape?.gravity ?? 0).toFixed(1)}`
+  document.querySelectorAll('.fab').forEach((n, i) => n.classList.toggle('on', i === chosenFabric))
+  document.querySelectorAll('#worn-swatches i').forEach((n, i) =>
+    n.classList.toggle('on', i === chosenColour))
+}
 
 async function loadObject(id) {
   const r = await fetch(`${MET}/objects/${id}`)
@@ -205,6 +233,23 @@ function renderEngine(img, palette, sourceName) {
 
   el('shapes').innerHTML = shapes.map(s => `
     <div class="shape"><b>${s.name}</b><p>${s.note}</p></div>`).join('')
+
+  // Wearing the concept: pick a fabric, pick a colour from the measured palette.
+  currentFabrics = fabrics
+  currentPalette = palette
+  chosenFabric = 0
+  chosenColour = palette.findIndex(c => c.lightness > 25) 
+  if (chosenColour < 0) chosenColour = 0
+
+  el('worn-swatches').innerHTML = palette
+    .map(c => `<i style="background:${c.hex}" title="${c.name}"></i>`).join('')
+  document.querySelectorAll('#worn-swatches i').forEach((n, i) => {
+    n.onclick = () => { chosenColour = i; wear() }
+  })
+  document.querySelectorAll('.fab').forEach((n, i) => {
+    n.onclick = () => { chosenFabric = i; wear() }
+  })
+  wear()
 
   el('engine-src').textContent = sourceName
 }

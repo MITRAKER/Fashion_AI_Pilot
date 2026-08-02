@@ -99,6 +99,28 @@
   .shape{background:#fff;border:1px solid var(--line);border-radius:4px;padding:13px 15px}
   .shape b{font-size:13px}
   .shape p{font-size:11.5px;color:var(--graphite);line-height:1.6;margin-top:5px}
+
+  .hint-t{text-transform:none;letter-spacing:0;color:var(--chalk);font-family:var(--body)}
+  .worn{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
+  @media(max-width:1100px){.worn{grid-template-columns:1fr}}
+  .stage{background:#fff;border:1px solid var(--line);border-radius:4px;overflow:hidden;
+         position:sticky;top:16px}
+  .stage-h{display:flex;align-items:center;gap:9px;padding:11px 14px;border-bottom:1px solid var(--line)}
+  .stage-h b{font-size:13px}
+  .stage-h span{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--graphite)}
+  #view3d{height:420px;position:relative;background:linear-gradient(180deg,#FAFAFB,#EFEFF2)}
+  #view3d canvas{display:block;width:100%;height:100%}
+  #view3d .spin{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--mono);
+                font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#9a9aa2}
+  .stage-f{display:flex;gap:12px;padding:9px 14px;border-top:1px solid var(--line);
+           font-family:var(--mono);font-size:9.5px;color:var(--graphite)}
+  .stage-f span:last-child{margin-left:auto}
+  #worn-swatches{display:flex;gap:6px;padding:11px 14px;border-top:1px solid var(--line);flex-wrap:wrap}
+  #worn-swatches i{width:26px;height:26px;border-radius:5px;border:1px solid rgba(0,0,0,.15);cursor:pointer}
+  #worn-swatches i.on{outline:2px solid var(--chalk);outline-offset:2px}
+  .fab{cursor:pointer;transition:.14s}
+  .fab:hover{border-color:var(--chalk)}
+  .fab.on{border-color:var(--chalk);box-shadow:0 0 0 1px var(--chalk) inset}
 </style>
 </head>
 <body>
@@ -137,8 +159,22 @@
     </div>
 
     <div class="sec">
-      <h3>Materials it could be made in, and why</h3>
-      <div id="fabrics-why"></div>
+      <h3>Materials it could be made in, and why <span class="hint-t">— click one to wear it</span></h3>
+      <div class="worn">
+        <div id="fabrics-why"></div>
+        <div class="stage">
+          <div class="stage-h">
+            <b id="worn-name">—</b>
+            <span id="worn-col"></span>
+          </div>
+          <div id="view3d"><span class="spin">Draping…</span></div>
+          <div class="stage-f">
+            <span>Drag to turn</span>
+            <span id="worn-phys"></span>
+          </div>
+          <div id="worn-swatches"></div>
+        </div>
+      </div>
     </div>
 
     <div class="sec">

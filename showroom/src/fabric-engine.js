@@ -81,6 +81,15 @@ export function analyseImage(img) {
 /**
  * Each entry states the behaviour, not just the name. `fit` scores how well the
  * fabric answers the measured qualities of the source.
+ *
+ * `drape` and `mat` are what make the 3D preview honest: choosing gazar over
+ * georgette changes the SIMULATION — bend stiffness, weight, how far the hem
+ * flares — not only a swatch colour. A preview where every fabric hangs
+ * identically teaches a designer nothing.
+ *
+ *   bend     resistance to folding; high = holds its own shape
+ *   gravity  effective weight
+ *   flare    how far the skirt stands away from the body
  */
 const FABRICS = [
   {
@@ -88,72 +97,84 @@ const FABRICS = [
     behaviour: 'Holds a shape away from the body and reads as light passing through cloth.',
     fit: a => a.edge * 2.2 + (1 - a.lightness) * -0.4 + 0.3,
     use: 'Volume without weight — a sleeve or a hem that stands.',
+    drape: { bend: 0.42, gravity: -3.6, damp: 0.972, flare: 0.20 }, mat: { roughness: 0.42, sheen: 0.85, sheenRough: 0.25, opacity: 0.72 },
   },
   {
     name: 'Silk gazar', hand: 'stiff, matte, sculptural',
     behaviour: 'Takes a fold and keeps it. The couture answer to architectural form.',
     fit: a => a.edge * 2.6 + a.contrast * 0.8,
     use: 'A silhouette that must hold its own geometry.',
+    drape: { bend: 0.55, gravity: -3.2, damp: 0.975, flare: 0.24 }, mat: { roughness: 0.62, sheen: 0.35, sheenRough: 0.5, opacity: 1 },
   },
   {
     name: 'Duchesse satin', hand: 'heavy, lustrous, structured',
     behaviour: 'Weight plus sheen: it carries a curve and catches a highlight along it.',
     fit: a => a.contrast * 1.6 + a.chroma * 1.2 + a.edge * 0.6,
     use: 'Sculpted bodice, deep folds that read as light on a surface.',
+    drape: { bend: 0.26, gravity: -7.4, damp: 0.958, flare: 0.10 }, mat: { roughness: 0.18, sheen: 0.9, sheenRough: 0.15, opacity: 1 },
   },
   {
     name: 'Silk georgette', hand: 'fluid, dry, matte',
     behaviour: 'Falls in many small folds and moves a beat behind the body.',
     fit: a => (1 - a.edge) * 2.0 + (1 - a.contrast) * 0.7,
     use: 'Bias fall, drape that follows rather than declares.',
+    drape: { bend: 0.05, gravity: -5.6, damp: 0.965, flare: 0.13 }, mat: { roughness: 0.78, sheen: 0.5, sheenRough: 0.45, opacity: 0.94 },
   },
   {
     name: 'Silk chiffon', hand: 'sheer, floating, very light',
     behaviour: 'Almost no weight — layers build colour without building bulk.',
     fit: a => (1 - a.edge) * 1.7 + a.lightness * 0.9,
     use: 'Layered translucency, colour by accumulation.',
+    drape: { bend: 0.03, gravity: -4.4, damp: 0.968, flare: 0.15 }, mat: { roughness: 0.72, sheen: 0.6, sheenRough: 0.35, opacity: 0.62 },
   },
   {
     name: 'Crepe de chine', hand: 'soft, dry, fluid',
     behaviour: 'Quiet drape with a matte face that keeps colour deep.',
     fit: a => (1 - a.edge) * 1.5 + a.chroma * 0.8,
     use: 'A column that skims without clinging.',
+    drape: { bend: 0.08, gravity: -5.8, damp: 0.964, flare: 0.11 }, mat: { roughness: 0.82, sheen: 0.35, sheenRough: 0.55, opacity: 1 },
   },
   {
     name: 'Wool crepe', hand: 'matte, dense, stable',
     behaviour: 'Tailors cleanly and holds a pressed line.',
     fit: a => (1 - a.texture) * 1.4 + a.contrast * 0.6,
     use: 'Tailoring where the seam should be the only event.',
+    drape: { bend: 0.18, gravity: -6.4, damp: 0.960, flare: 0.09 }, mat: { roughness: 0.9, sheen: 0.55, sheenRough: 0.4, opacity: 1 },
   },
   {
     name: 'Bouclé', hand: 'looped, textured, spongy',
     behaviour: 'Surface interest carries the design; seams disappear into it.',
     fit: a => a.texture * 2.4,
     use: 'When the reference is about surface rather than line.',
+    drape: { bend: 0.30, gravity: -6.8, damp: 0.955, flare: 0.08 }, mat: { roughness: 0.96, sheen: 0.7, sheenRough: 0.6, opacity: 1 },
   },
   {
     name: 'Silk jacquard', hand: 'figured, substantial, subtly lustrous',
     behaviour: 'The pattern is woven in, so it moves with the cloth instead of sitting on it.',
     fit: a => a.texture * 1.8 + a.chroma * 0.9,
     use: 'Motif from the source rendered as structure, not print.',
+    drape: { bend: 0.22, gravity: -6.6, damp: 0.960, flare: 0.10 }, mat: { roughness: 0.55, sheen: 0.6, sheenRough: 0.35, opacity: 1 },
   },
   {
     name: 'Cotton faille', hand: 'ribbed, crisp, matte',
     behaviour: 'Fine horizontal rib gives body without gloss.',
     fit: a => a.edge * 1.5 + (1 - a.chroma) * 0.9,
     use: 'Clean volume in a palette that should stay quiet.',
+    drape: { bend: 0.34, gravity: -6.0, damp: 0.962, flare: 0.16 }, mat: { roughness: 0.8, sheen: 0.3, sheenRough: 0.5, opacity: 1 },
   },
   {
     name: 'Silk velvet', hand: 'deep pile, fluid, light-absorbing',
     behaviour: 'Colour goes almost black in the fold and glows on the crown.',
     fit: a => a.contrast * 1.5 + (1 - a.lightness) * 1.6 + a.chroma * 0.7,
     use: 'A dark reference where depth matters more than shape.',
+    drape: { bend: 0.12, gravity: -8.2, damp: 0.955, flare: 0.08 }, mat: { roughness: 0.95, sheen: 1.0, sheenRough: 0.3, opacity: 1 },
   },
   {
     name: 'Technical taffeta', hand: 'papery, rustling, resilient',
     behaviour: 'Springs back from a crush and holds an inflated volume.',
     fit: a => a.edge * 1.9 + a.lightness * 0.6,
     use: 'Exaggerated volume that must survive being sat in.',
+    drape: { bend: 0.46, gravity: -4.0, damp: 0.970, flare: 0.22 }, mat: { roughness: 0.35, sheen: 0.4, sheenRough: 0.3, opacity: 1 },
   },
 ]
 
