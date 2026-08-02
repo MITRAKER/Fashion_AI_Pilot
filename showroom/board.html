@@ -121,6 +121,28 @@
   .fab{cursor:pointer;transition:.14s}
   .fab:hover{border-color:var(--chalk)}
   .fab.on{border-color:var(--chalk);box-shadow:0 0 0 1px var(--chalk) inset}
+
+  #panel{display:grid;gap:12px}
+  .fnd{background:#fff;border:1px solid var(--line);border-radius:4px;padding:15px 17px;
+       border-left:3px solid var(--chalk)}
+  .fnd.blocks{border-left-color:var(--thread)}
+  .fnd-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:9px}
+  .fnd-h .who{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;
+              background:var(--chalk);color:#fff;padding:3px 8px;border-radius:3px}
+  .fnd-h b{font-size:14px}
+  .fnd-h .cf{margin-left:auto;font-family:var(--mono);font-size:9px;letter-spacing:.1em;
+             text-transform:uppercase;color:var(--graphite)}
+  .fnd-h .cf.high{color:#2E7D5B}
+  .fnd-h .cf.low{color:#8A6A1F}
+  .fnd p{font-size:12.5px;line-height:1.7;margin-bottom:7px}
+  .fnd .rule{color:var(--graphite)}
+  .fnd em{font-style:normal;font-family:var(--mono);font-size:9px;letter-spacing:.12em;
+          text-transform:uppercase;color:var(--chalk);margin-right:6px}
+  .fnd .blk{color:var(--thread);font-size:11.5px}
+  .cites{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;padding-top:9px;
+         border-top:1px dotted var(--line)}
+  .cites span{font-family:var(--mono);font-size:9px;color:var(--graphite);
+              background:#F4F4F6;padding:3px 7px;border-radius:3px}
 </style>
 </head>
 <body>
@@ -156,6 +178,11 @@
     <div class="sec">
       <h3>What the source measures — <span id="engine-src"></span></h3>
       <div id="measures"></div>
+    </div>
+
+    <div class="sec">
+      <h3>The specialists — what each discipline says about this source</h3>
+      <div id="panel"></div>
     </div>
 
     <div class="sec">

@@ -1,6 +1,7 @@
 import { extractPalette } from './palette.js'
 import { analyseImage, suggestFabrics, suggestSilhouettes } from './fabric-engine.js'
 import { createBodyPreview } from './board-3d.js'
+import { consultSpecialists } from './specialists.js'
 
 /**
  * Artwork → capsule collection board.
@@ -219,6 +220,21 @@ function renderEngine(img, palette, sourceName) {
       <b>${k}</b><span class="v">${v}</span>
       <div class="bar"><i style="width:${Math.min(100, v * 100 * (k === 'Texture' ? 1.6 : 1)).toFixed(0)}%"></i></div>
       <small>${note}</small>
+    </div>`).join('')
+
+  // The panel: each finding names who said it, the rule applied, and what backs it.
+  const findings = consultSpecialists(a, palette)
+  el('panel').innerHTML = findings.map(f => `
+    <div class="fnd${f.blocks ? ' blocks' : ''}">
+      <div class="fnd-h">
+        <span class="who">${f.specialist}</span>
+        <b>${f.title}</b>
+        <span class="cf ${f.confidence}">${f.confidence} confidence</span>
+      </div>
+      <p class="rule"><em>Principle</em> ${f.principle}</p>
+      <p class="find">${f.finding}</p>
+      ${f.blocks ? `<p class="blk">${f.blocks}</p>` : ''}
+      <div class="cites">${f.cites.map(c => `<span>${c}</span>`).join('')}</div>
     </div>`).join('')
 
   el('fabrics-why').innerHTML = fabrics.map((f, i) => `
