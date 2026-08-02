@@ -3,6 +3,7 @@ import { createStudioEnvironment } from './env/studio.js'
 import { buildPipeline } from './post/pipeline.js'
 import { createRunwayWorld } from './runway/world.js'
 import { createAvatar } from './runway/avatar.js'
+import { createModelAvatar } from './runway/model-avatar.js'
 import { createGameEngine } from './game/engine.js'
 import { createWardrobe } from './runway/wardrobe.js'
 import { createHotspots } from './runway/hotspots.js'
@@ -46,7 +47,12 @@ env.lights.forEach(l => { l.intensity *= 0.28 })
 const world = createRunwayWorld(env.envMap)
 scene.add(world.group)
 
-const avatar = createAvatar(env.envMap)
+// A real rigged character by default; ?proc=1 falls back to the procedural rig
+// so the two can be compared in the same lighting.
+const useProcedural = new URLSearchParams(location.search).has('proc')
+const avatar = useProcedural
+  ? createAvatar(env.envMap)
+  : await createModelAvatar(env.envMap)
 scene.add(avatar.group)
 
 const engine = createGameEngine()
