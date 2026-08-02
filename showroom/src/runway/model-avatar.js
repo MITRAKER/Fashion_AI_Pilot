@@ -1,5 +1,7 @@
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { createRigCoat } from './rig-coat.js'
+import { makeWool } from '../materials/library.js'
 
 /**
  * Avatar backed by a real rigged character instead of procedural primitives.
@@ -99,6 +101,22 @@ export async function createModelAvatar(envMap) {
     bone.quaternion.copy(rest[k]).multiply(q)
   }
 
+  /* ------------------------------------------------------------------ coat */
+  // The character's own clothing is baked into one texture, so the wardrobe had
+  // nothing real to change. This is an actual garment over the rig.
+  // OFF BY DEFAULT (?coat=1 to enable). A pinned cloth cylinder does not read as
+  // a coat on this figure — it settles into a barrel from collar to hem and
+  // swallows the character, who already wears a properly modelled outfit. Kept
+  // because the simulation and the bone re-pinning are correct and reusable; what
+  // it lacks is a garment PATTERN (fronts, back, sleeves, lapel) rather than a
+  // tube. Shipping it as-is would have made the scene worse, which is the whole
+  // reason to look at renders instead of trusting that a feature "works".
+  const coatOn = new URLSearchParams(location.search).has('coat')
+  const coatMat = makeWool(envMap)
+  const coat = createRigCoat(bones, root.scale.x || 1, coatMat)
+  coat.mesh.visible = coatOn
+  group.add(coat.mesh)
+
   const ARM_DROP = 1.28        // radians; T-pose arms down to the sides
   let phase = 0
   let walking = false
@@ -151,6 +169,8 @@ export async function createModelAvatar(envMap) {
   }
 
   gait(0)
+  root.updateMatrixWorld(true)
+  if (coatOn) coat.settle(3.2)
 
   /**
    * Where each garment hotspot lives ON THE RIG. Parenting to a bone rather than
@@ -200,11 +220,21 @@ export async function createModelAvatar(envMap) {
       poseT = 0
     },
 
-    /** Tint the character until a real garment mesh replaces this. */
+    /**
+     * Dress her. The shell recolours the simulated coat, not the character —
+     * tinting the body was only ever a stand-in. Underlayer and shoe entries
+     * have no separate mesh on this rig yet, so they are accepted and ignored
+     * rather than silently repainting her skin.
+     */
     setLook(look = {}) {
-      if (!skinned?.material) return
-      if (look.coat !== undefined) skinned.material.color.set(look.coat)
-      if (look.coatVisible !== undefined) skinned.visible = true
+      if (look.coat !== undefined) {
+        coatMat.color.set(look.coat)
+        // Sheen tracks the shell so a backlit silhouette keeps its fuzz halo
+        // instead of fringing in the previous colourway (ART-DIRECTION §5).
+        coatMat.sheenColor.set(look.coat)
+        coatMat.sheenColor.offsetHSL(0, -0.12, 0.20)
+      }
+      if (look.coatVisible !== undefined) coat.mesh.visible = coatOn && look.coatVisible
     },
 
     update(dt) {
@@ -213,6 +243,12 @@ export async function createModelAvatar(envMap) {
         group.position.z = Math.min(group.position.z + WALK_SPEED * step, RUNWAY_PIT_Z)
       }
       gait(step)
+      // Cloth after the skeleton, so it hangs from where the bones actually are
+      // this frame rather than a frame behind.
+      if (coatOn) {
+        root.updateMatrixWorld(true)
+        coat.update(step)
+      }
     },
   }
 }
