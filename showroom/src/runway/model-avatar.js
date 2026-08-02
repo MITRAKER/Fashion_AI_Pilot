@@ -23,25 +23,57 @@ import { makeWool } from '../materials/library.js'
  *   question this project applies to books and images, applied to a mesh.
  */
 
-const MODEL_URL = 'models/Michelle.glb'
+/**
+ * Which character to load. Override without touching code:
+ *   ?avatar=models/MyModel.glb      a file dropped into showroom/public/models/
+ *   ?avatar=https://models.readyplayer.me/<id>.glb
+ *
+ * Michelle is only the fallback — she is a stylised sample, not a fashion model.
+ * A realistic model is an authored or scanned asset (Mixamo, Ready Player Me, or
+ * a bought scan); this loader takes any of them.
+ */
+const DEFAULT_MODEL = 'models/Michelle.glb'
+const MODEL_URL = new URLSearchParams(location.search).get('avatar') || DEFAULT_MODEL
 
 const GROUND_Y = -0.56
 const RUNWAY_START_Z = -14.0
 const RUNWAY_PIT_Z = -0.2
 const WALK_SPEED = 1.4
 
-/** Mixamo rigs use these names verbatim. */
+/**
+ * Bone aliases per role, so any common rig works without editing code.
+ *
+ * Mixamo prefixes everything with "mixamorig"; Ready Player Me and most VRM/glTF
+ * exports use the bare Unity/humanoid names; Blender rigs vary. Matching is
+ * case-insensitive on the normalised name (punctuation and the mixamorig prefix
+ * stripped), first alias wins.
+ */
 const B = {
-  hips: 'mixamorigHips',
-  spine: 'mixamorigSpine', spine1: 'mixamorigSpine1', spine2: 'mixamorigSpine2',
-  neck: 'mixamorigNeck', head: 'mixamorigHead',
-  lShoulder: 'mixamorigLeftShoulder', lArm: 'mixamorigLeftArm',
-  lFore: 'mixamorigLeftForeArm', lHand: 'mixamorigLeftHand',
-  rShoulder: 'mixamorigRightShoulder', rArm: 'mixamorigRightArm',
-  rFore: 'mixamorigRightForeArm', rHand: 'mixamorigRightHand',
-  lUpLeg: 'mixamorigLeftUpLeg', lLeg: 'mixamorigLeftLeg', lFoot: 'mixamorigLeftFoot',
-  rUpLeg: 'mixamorigRightUpLeg', rLeg: 'mixamorigRightLeg', rFoot: 'mixamorigRightFoot',
+  hips: ['hips', 'pelvis'],
+  spine: ['spine'],
+  spine1: ['spine1', 'spine_01', 'chest'],
+  spine2: ['spine2', 'spine_02', 'upperchest', 'chest'],
+  neck: ['neck'],
+  head: ['head'],
+  lShoulder: ['leftshoulder', 'shoulder_l'],
+  lArm: ['leftarm', 'upperarm_l', 'leftupperarm'],
+  lFore: ['leftforearm', 'lowerarm_l', 'leftlowerarm'],
+  lHand: ['lefthand', 'hand_l'],
+  rShoulder: ['rightshoulder', 'shoulder_r'],
+  rArm: ['rightarm', 'upperarm_r', 'rightupperarm'],
+  rFore: ['rightforearm', 'lowerarm_r', 'rightlowerarm'],
+  rHand: ['righthand', 'hand_r'],
+  lUpLeg: ['leftupleg', 'thigh_l', 'leftupperleg'],
+  lLeg: ['leftleg', 'calf_l', 'leftlowerleg'],
+  lFoot: ['leftfoot', 'foot_l'],
+  rUpLeg: ['rightupleg', 'thigh_r', 'rightupperleg'],
+  rLeg: ['rightleg', 'calf_r', 'rightlowerleg'],
+  rFoot: ['rightfoot', 'foot_r'],
 }
+
+/** Strip the mixamorig prefix, punctuation and case so aliases can match. */
+const normaliseBone = n =>
+  String(n).toLowerCase().replace(/^mixamorig[:_]?/, '').replace(/[^a-z0-9]/g, '')
 
 export async function createModelAvatar(envMap) {
   const group = new THREE.Group()
@@ -69,9 +101,23 @@ export async function createModelAvatar(envMap) {
       }
     }
     if (o.isBone) {
-      for (const [k, name] of Object.entries(B)) if (o.name === name) bones[k] = o
+      const n = normaliseBone(o.name)
+      for (const [role, aliases] of Object.entries(B)) {
+        if (bones[role]) continue                 // first match wins
+        if (aliases.includes(n)) bones[role] = o
+      }
     }
   })
+
+  // A rig missing the core bones cannot be walked. Fail loudly rather than
+  // rendering a character frozen in bind pose with no explanation.
+  const missing = ['hips', 'lUpLeg', 'rUpLeg', 'lArm', 'rArm']
+    .filter(k => !bones[k])
+  if (missing.length) {
+    console.warn(
+      `[avatar] ${MODEL_URL}: unmapped bones [${missing.join(', ')}]. ` +
+      'Add this rig naming convention to B in model-avatar.js.')
+  }
 
   // Rest pose is the reference every gait offset is applied against, so a bone
   // never accumulates drift frame to frame.
