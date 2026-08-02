@@ -31,7 +31,8 @@
   #board{opacity:0;transition:opacity .4s}
   #board.ready{opacity:1}
 
-  .hero{display:grid;grid-template-columns:300px minmax(0,1fr);gap:26px;margin-top:22px}
+  .hero{display:grid;grid-template-columns:250px minmax(0,1fr) 330px;gap:24px;margin-top:22px;align-items:start}
+  @media(max-width:1150px){.hero{grid-template-columns:1fr}}
   .hero img{width:100%;border-radius:4px;border:1px solid var(--line);display:block}
   .art-meta{font-family:var(--mono);font-size:10.5px;color:var(--graphite);margin-top:8px;line-height:1.7}
   #rights{color:#2E7D5B}
@@ -103,12 +104,11 @@
   .hint-t{text-transform:none;letter-spacing:0;color:var(--chalk);font-family:var(--body)}
   .worn{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
   @media(max-width:1100px){.worn{grid-template-columns:1fr}}
-  .stage{background:#fff;border:1px solid var(--line);border-radius:4px;overflow:hidden;
-         position:sticky;top:16px}
+  .stage{background:#fff;border:1px solid var(--line);border-radius:4px;overflow:hidden}
   .stage-h{display:flex;align-items:center;gap:9px;padding:11px 14px;border-bottom:1px solid var(--line)}
   .stage-h b{font-size:13px}
   .stage-h span{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--graphite)}
-  #view3d{height:420px;position:relative;background:linear-gradient(180deg,#FAFAFB,#EFEFF2)}
+  #view3d{height:400px;position:relative;background:linear-gradient(180deg,#FAFAFB,#EFEFF2)}
   #view3d canvas{display:block;width:100%;height:100%}
   #view3d .spin{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--mono);
                 font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#9a9aa2}
@@ -173,6 +173,19 @@
         <h2 id="title"></h2>
         <p id="concept"></p>
       </div>
+
+      <div class="stage">
+        <div class="stage-h">
+          <b id="worn-name">—</b>
+          <span id="worn-col"></span>
+        </div>
+        <div id="view3d"><span class="spin">Draping…</span></div>
+        <div class="stage-f">
+          <span>Drag to turn</span>
+          <span id="worn-phys"></span>
+        </div>
+        <div id="worn-swatches"></div>
+      </div>
     </div>
 
     <div class="sec">
@@ -187,21 +200,7 @@
 
     <div class="sec">
       <h3>Materials it could be made in, and why <span class="hint-t">— click one to wear it</span></h3>
-      <div class="worn">
-        <div id="fabrics-why"></div>
-        <div class="stage">
-          <div class="stage-h">
-            <b id="worn-name">—</b>
-            <span id="worn-col"></span>
-          </div>
-          <div id="view3d"><span class="spin">Draping…</span></div>
-          <div class="stage-f">
-            <span>Drag to turn</span>
-            <span id="worn-phys"></span>
-          </div>
-          <div id="worn-swatches"></div>
-        </div>
-      </div>
+      <div id="fabrics-why"></div>
     </div>
 
     <div class="sec">
