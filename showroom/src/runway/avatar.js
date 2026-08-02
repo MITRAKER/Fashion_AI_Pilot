@@ -386,6 +386,18 @@ export function createAvatar(envMap) {
   hairMat.sheenRoughness = 0.3
   hairMat.sheenColor = new THREE.Color(0x6b4a33)
 
+  /**
+   * Brows and lashes read at 60 px as VALUE, not detail — and hairMat is nearly
+   * black, so brow + lash + socket merged into a single dark band that looked
+   * like a mask. This is the same hair, lifted and warmed until the features
+   * separate from the socket instead of filling it.
+   */
+  const browMat = hairMat.clone()
+  browMat.color = new THREE.Color(0x54402f)
+  browMat.roughness = 0.52
+  browMat.clearcoat = 0.0
+  browMat.sheen = 0.15
+
   const leather = new THREE.MeshPhysicalMaterial({
     color: 0x120f0d,
     envMap,
@@ -611,7 +623,7 @@ export function createAvatar(envMap) {
 
     // Lash line — a squashed torus arc. Reads as the dark upper lid.
     const lash = new THREE.Mesh(
-      new THREE.TorusGeometry(0.0118, 0.0016, 8, 22, Math.PI * 1.05), hairMat)
+      new THREE.TorusGeometry(0.0118, 0.0013, 8, 22, Math.PI * 1.05), browMat)
     lash.rotation.z = Math.PI * 0.02
     lash.position.set(0, -0.0006, 0.0038)
     lash.scale.set(1, 0.62, 0.7)
@@ -627,7 +639,7 @@ export function createAvatar(envMap) {
 
     // Brow.
     const brow = new THREE.Mesh(
-      new THREE.TorusGeometry(0.0200, 0.0030, 8, 22, Math.PI * 0.72), hairMat)
+      new THREE.TorusGeometry(0.0200, 0.0024, 8, 22, Math.PI * 0.72), browMat)
     brow.position.set(0.0300 * s, 0.0288, 0.0616)
     brow.rotation.set(0.18, -0.52 * s, Math.PI * (s > 0 ? 0.16 : 0.84))
     brow.scale.set(1, 0.60, 0.42)
@@ -1510,6 +1522,9 @@ export function createAvatar(envMap) {
     // The head holds the eyeline down the runway whatever the body does.
     out.hdRY = -(out.pelRY + out.chRY) * 0.88
     out.hdRZ = -(out.pelRZ + out.chRZ) * 0.62
+    // Tested +0.105 (chin toward the pit) on the theory that a low camera wants
+    // the chin dropped. It turned the face further away from the lens, not
+    // toward it. Reverted — the original slight lift presents more of the face.
     out.hdRX = -0.055
 
     // Arms antiphase to the same-side leg, on a longer lag than the shoulders.
