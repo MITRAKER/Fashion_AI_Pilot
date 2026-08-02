@@ -329,10 +329,15 @@ export function createAvatar(envMap) {
     normalMap: fibre,
   })
   knit.normalScale = new THREE.Vector2(0.30, 0.30)
-  knit.sheen = 0.8
-  knit.sheenRoughness = 0.45
-  // Warm sheen: §5 requires the fuzz halo along a backlit silhouette.
-  knit.sheenColor = new THREE.Color(0xb69a7c)
+  // Sheen peaks at grazing angles, and a sphere presents grazing angles around
+  // its whole silhouette — so at 0.8 every joint ball glowed pale against the
+  // tapered limbs and the figure read as a wooden artist's mannequin. Sheen
+  // should imply fibre, not repaint the surface.
+  knit.sheen = 0.30
+  knit.sheenRoughness = 0.62
+  // §5 still wants a fuzz halo on a backlit silhouette, but the tint stays close
+  // to the cloth colour so it reads as light through fibre, not a second colour.
+  knit.sheenColor = new THREE.Color(0x8d8377)
 
   // Skin: envMapIntensity deliberately low. The studio IBL is bright enough that
   // anything above ~0.3 with a clearcoat turns a head into chrome.
@@ -519,9 +524,11 @@ export function createAvatar(envMap) {
     // brow ridge + glabella
     sym(0.026, 0.030, 0.070, 0.026, 0.0055, [0, 0.15, 1])
     F.push([0, 0.031, 0.078, 0.020, 0.0028, [0, 0, 1]])
-    // eye sockets
-    sym(0.029, 0.013, 0.066, 0.024, -0.0075, null)
-    sym(0.031, 0.021, 0.060, 0.017, -0.0035, null)
+    // eye sockets. Shallower than anatomy suggests: the rim-lit stage leaves the
+    // face in shadow, and a deep socket in shadow reads as an empty skull rather
+    // than a recess. Depth here is traded for legibility at runway distance.
+    sym(0.029, 0.013, 0.066, 0.024, -0.0040, null)
+    sym(0.031, 0.021, 0.060, 0.017, -0.0018, null)
     // nose: bridge → tip, modelled into the skull so there is no seam
     F.push([0, 0.020, 0.080, 0.017, 0.0055, [0, 0, 1]])
     F.push([0, 0.006, 0.084, 0.016, 0.0105, [0, 0, 1]])
@@ -556,6 +563,32 @@ export function createAvatar(envMap) {
     const skull = mesh(g, skin)
     skull.receiveShadow = true
     faceGroup.add(skull)
+  }
+
+  /* ------------------------------------------------------------ face fill */
+  /**
+   * A photographer's fill on the face, parented to the head so it tracks every
+   * step and turn. Without it the runway rig lights her from behind and above
+   * only, the sockets go black, and the face reads as a skull no matter how well
+   * the skull is sculpted — which is exactly what it was doing.
+   *
+   * Deliberately short-range: it must shape the face and touch nothing else in
+   * the scene, or it flattens the stage lighting the rig works hard to build.
+   */
+  {
+    // Decay is quadratic and the lamp sits ~0.2m from the skin, so intensity
+    // here is tiny by scene standards: 1.5 blew the face to pure white.
+    const fill = new THREE.PointLight(0xffe8d2, 0.055, 0.62, 2.0)
+    fill.position.set(0.02, 0.132, 0.30)
+    fill.castShadow = false
+    head.add(fill)
+
+    // A second, cooler and weaker, from below-left — stops the fill reading as a
+    // single flat frontal source and puts a little life under the brow.
+    const kick = new THREE.PointLight(0xcfe0ff, 0.016, 0.48, 2.0)
+    kick.position.set(-0.10, 0.05, 0.20)
+    kick.castShadow = false
+    head.add(kick)
   }
 
   // --- eyes. An almond of sclera set into the socket with a dark iris and a
