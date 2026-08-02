@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
+const ENGINE = resolve(__dirname, '../showroom/src')
+
 /**
  * Serves Natalie's wireframe at /wireframe from its real location in frontend/
  */
@@ -24,11 +26,69 @@ function wireframeRoute() {
   }
 }
 
+/**
+ * Proxy for museum images — ported from showroom/vite.config.js, because the
+ * dashboard now runs the same source-analysis pipeline and hits the same wall.
+ *
+ * Reading a painting's pixels requires the image to be same-origin. The browser
+ * here cannot reach the Met's image host at all — only their API host — so a
+ * direct <img> load fails regardless of CORS headers. Fetch it server-side.
+ *
+ * The host allowlist is the whole security of this: without it, this is an open
+ * proxy that would fetch anything on the internal network for any caller.
+ */
+const ALLOWED_HOSTS = new Set([
+  'images.metmuseum.org',
+  'collectionapi.metmuseum.org',
+  'framemark.vam.ac.uk',        // Victoria & Albert IIIF
+  'media.vam.ac.uk',
+])
+
+function museumImageProxy() {
+  return {
+    name: 'museum-image-proxy',
+    configureServer(server: any) {
+      server.middlewares.use('/museum-image', async (req: any, res: any) => {
+        try {
+          const target = new URL(req.url, 'http://x').searchParams.get('url')
+          if (!target) { res.statusCode = 400; return res.end('missing url') }
+
+          const u = new URL(target)
+          if (u.protocol !== 'https:' || !ALLOWED_HOSTS.has(u.hostname)) {
+            res.statusCode = 403
+            return res.end(`host not allowed: ${u.hostname}`)
+          }
+
+          const upstream = await fetch(u.toString())
+          if (!upstream.ok) {
+            res.statusCode = upstream.status
+            return res.end(`upstream ${upstream.status}`)
+          }
+
+          const buf = Buffer.from(await upstream.arrayBuffer())
+          res.setHeader('content-type', upstream.headers.get('content-type') || 'image/jpeg')
+          res.setHeader('cache-control', 'public, max-age=86400')
+          res.end(buf)
+        } catch (err: any) {
+          res.statusCode = 502
+          res.end(String(err?.message ?? err))
+        }
+      })
+    },
+  }
+}
+
 export default defineConfig({
   base: process.env.NODE_ENV === 'production' ? '/Fashion_AI_Pilot/' : '/',
-  plugins: [react(), wireframeRoute()],
+  plugins: [react(), wireframeRoute(), museumImageProxy()],
+  // `@engine` is the showroom's engine, imported directly rather than copied.
+  // Copying is how the dashboard ended up with a hardcoded style sheet and a
+  // duplicate dress form that drifted from the real one.
+  resolve: { alias: { '@engine': ENGINE } },
   server: {
     port: 5173,
     proxy: { '/api': { target: 'http://localhost:8787', changeOrigin: true } },
+    // The engine lives outside this Vite root; Vite must be allowed to serve it.
+    fs: { allow: [resolve(__dirname, '..')] },
   },
 })
