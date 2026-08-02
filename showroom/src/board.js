@@ -2,7 +2,7 @@ import { extractPalette } from './palette.js'
 import { analyseImage, suggestFabrics, suggestSilhouettes } from './fabric-engine.js'
 import { createBodyPreview } from './board-3d.js'
 import { consultSpecialists } from './specialists.js'
-import { SHOULDER, BUST, recommend } from './details.js'
+import { SHOULDER, BUST, SLEEVE, recommend } from './details.js'
 import { defaultSpec, describe } from './garment-spec.js'
 import { correct, undo, EXAMPLES } from './correct.js'
 
@@ -318,6 +318,9 @@ function renderEngine(img, palette, sourceName) {
   el('shoulder-lib').innerHTML =
     '<button class="dtl none on" data-kind="shoulder" data-n="0"><b>None</b></button>' +
     SHOULDER.map(d => tile('shoulder', d, rec.shoulder.includes(d.n))).join('')
+  el('sleeve-lib').innerHTML =
+    '<button class="dtl none on" data-kind="sleeve" data-n="0"><b>None</b></button>' +
+    SLEEVE.map(d => tile('sleeve', d, rec.sleeve.includes(d.n))).join('')
   el('bust-lib').innerHTML =
     '<button class="dtl none on" data-kind="bust" data-n="0"><b>None</b></button>' +
     BUST.map(d => tile('bust', d, rec.bust.includes(d.n))).join('')
@@ -372,6 +375,14 @@ function renderEngine(img, palette, sourceName) {
       say(e.target.textContent)
       el('say-input').value = ''
     }
+  }
+
+  const vt = el('view-toggle')
+  if (vt) vt.onclick = () => {
+    const on = !preview?.isPair()
+    preview?.setPair(on)
+    vt.textContent = on ? 'Front + back (broken)' : 'Single view'
+    vt.classList.toggle('on', on)
   }
 
   const pt = el('print-toggle')

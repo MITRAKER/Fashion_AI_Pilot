@@ -255,6 +255,123 @@ export const BUST = [
   },
 ]
 
+
+/**
+ * Sleeve and cuff treatments, from the second @azadehashemi sheet — sixteen
+ * photographed on an arm form and eight drawn. The cuff is where a sleeve is
+ * decided: the same sleeve head reads completely differently finished at a
+ * gathered frill, a buckled band or a plain placket.
+ */
+export const SLEEVE = [
+  {
+    n: 1, name: 'Gathered frill cuff',
+    construction: 'Sleeve gathered 2:1 into a narrow band, frill extending past it, rolled hem.',
+    note: 'The frill length is measured from the band, not the wrist — state which, or it comes back wrong.',
+    prefers: 'soft',
+    build: (mat, ctx) => sleeveTube(mat, { len: 0.30, cuff: 'frill' }),
+  },
+  {
+    n: 2, name: 'Bow cuff',
+    construction: 'Self-fabric tie through a faced opening, long enough to knot at the wrist.',
+    note: 'Ties are cut on the bias so the knot sits flat instead of bunching.',
+    prefers: 'soft',
+    build: (mat, ctx) => sleeveTube(mat, { len: 0.32, cuff: 'bow' }),
+  },
+  {
+    n: 3, name: 'Buckled band cuff',
+    construction: 'Stiffened band with a metal buckle; band interlined to take the strain.',
+    note: 'Hardware is an external supplier line — supplier and cost belong on the style sheet.',
+    prefers: 'structured',
+    build: (mat, ctx) => sleeveTube(mat, { len: 0.31, cuff: 'band' }),
+  },
+  {
+    n: 4, name: 'Ruched sleeve',
+    construction: 'Elastic or shirring cord along the outer seam, gathering the full length.',
+    note: 'Shirring shortens the sleeve as it gathers; cut length must allow for take-up.',
+    prefers: 'soft',
+    build: (mat, ctx) => sleeveTube(mat, { len: 0.34, cuff: 'ruche' }),
+  },
+  {
+    n: 5, name: 'Bishop sleeve',
+    construction: 'Full through the forearm, gathered 3:1 into a plain cuff.',
+    note: 'Fullness sits at the wrist, not the elbow — the pattern is widest at the hem.',
+    prefers: 'soft',
+    build: (mat, ctx) => sleeveTube(mat, { len: 0.33, cuff: 'plain', bell: 1.5 }),
+  },
+  {
+    n: 6, name: 'Plain fitted',
+    construction: 'Two-piece sleeve, plain placket, single-button cuff.',
+    note: 'Nothing to hide behind: the sleeve cap must be walked against the armhole.',
+    prefers: 'structured',
+    build: (mat, ctx) => sleeveTube(mat, { len: 0.32, cuff: 'plain' }),
+  },
+  {
+    n: 7, name: 'Bell sleeve',
+    construction: 'Flared from the elbow, no cuff, faced hem.',
+    note: 'A faced hem keeps the flare open; a rolled hem would let it collapse.',
+    prefers: 'soft',
+    build: (mat, ctx) => sleeveTube(mat, { len: 0.30, cuff: 'none', bell: 2.4 }),
+  },
+  {
+    n: 8, name: 'Cap sleeve',
+    construction: 'Short shaped cap set into the armhole, faced and understitched.',
+    note: 'Length is measured from the shoulder point; it stops before the bicep.',
+    prefers: 'structured',
+    build: (mat, ctx) => sleeveTube(mat, { len: 0.10, cuff: 'none' }),
+  },
+]
+
+/**
+ * A sleeve on each arm. Built as a tapered tube from the shoulder with the cuff
+ * treatment at its end, so choosing a treatment is visible on the body.
+ */
+function sleeveTube(mat, { len = 0.32, cuff = 'plain', bell = 1 }) {
+  const g = new THREE.Group()
+  for (const s of [1, -1]) {
+    const arm = new THREE.Group()
+    arm.position.set(s * 0.148, 0.600, 0)
+    arm.rotation.z = s * 0.28          // arms hang slightly away from the body
+    g.add(arm)
+
+    const top = 0.052, bot = 0.036 * bell
+    const tube = new THREE.Mesh(
+      new THREE.CylinderGeometry(top, bot, len, 26, 1, true), mat)
+    tube.position.y = -len / 2
+    tube.castShadow = true
+    arm.add(tube)
+
+    const endY = -len
+    if (cuff === 'frill' || cuff === 'ruche') {
+      for (let i = 0; i < (cuff === 'ruche' ? 5 : 2); i++) {
+        const f = new THREE.Mesh(
+          new THREE.TorusGeometry(bot * 1.5, bot * 0.42, 8, 24), mat)
+        f.position.y = endY + i * (cuff === 'ruche' ? len * 0.18 : 0.022)
+        f.rotation.x = Math.PI / 2
+        f.scale.y = 0.5
+        f.castShadow = true
+        arm.add(f)
+      }
+    }
+    if (cuff === 'bow') {
+      for (const d of [1, -1]) {
+        const loop = new THREE.Mesh(new THREE.TorusGeometry(0.030, 0.009, 8, 20), mat)
+        loop.position.set(d * 0.030, endY + 0.006, 0)
+        loop.rotation.set(Math.PI / 2, 0, d * 0.5)
+        loop.scale.z = 0.5
+        arm.add(loop)
+      }
+    }
+    if (cuff === 'band' || cuff === 'plain') {
+      const band = new THREE.Mesh(
+        new THREE.CylinderGeometry(bot * 1.12, bot * 1.12, 0.030, 24, 1, true), mat)
+      band.position.y = endY + 0.014
+      band.castShadow = true
+      arm.add(band)
+    }
+  }
+  return g
+}
+
 /** Which treatments the measured source argues for, and why. */
 export function recommend(analysis) {
   const structured = analysis.edge >= 0.14
@@ -266,5 +383,6 @@ export function recommend(analysis) {
     want, why,
     shoulder: SHOULDER.filter(s => s.prefers === want).map(s => s.n),
     bust: BUST.filter(s => s.prefers === want).map(s => s.n),
+    sleeve: SLEEVE.filter(s => s.prefers === want).map(s => s.n),
   }
 }

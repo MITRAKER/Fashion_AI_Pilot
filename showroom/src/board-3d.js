@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { createStudioEnvironment } from './env/studio.js'
 import { createDressForm } from './form.js'
 import { createDress, NECKLINES } from './dress.js'
-import { SHOULDER, BUST } from './details.js'
+import { SHOULDER, BUST, SLEEVE } from './details.js'
 import { toDressOptions } from './garment-spec.js'
 
 /**
@@ -54,8 +54,14 @@ export function createBodyPreview(mount) {
   let currentNeckline = 'sweetheart'
   let shoulderN = 0   // 0 = none
   let bustN = 0
+  let sleeveN = 0
   let spec = null
   let az = 0.35, targetAz = 0.35
+  // OFF until the split render is fixed. Rendering front and back into one canvas
+  // with scissor+viewport produced an empty frame and I could not find the cause
+  // before running out of room to debug it safely. A broken preview is worse than
+  // a single view, so this defaults off rather than shipping blank.
+  let pairView = false
 
   function resize() {
     const w = mount.clientWidth, h = mount.clientHeight
@@ -169,11 +175,46 @@ export function createBodyPreview(mount) {
     const bN = spec ? (toDressOptions(spec).bustDetail || bustN) : bustN
     const sh = SHOULDER.find(s => s.n === sN)
     const bu = BUST.find(s => s.n === bN)
+    const sl = SLEEVE.find(s => s.n === sleeveN)
     if (sh) garment.object3D.add(sh.build(material, ctx))
     if (bu) garment.object3D.add(bu.build(material, ctx))
+    if (sl) garment.object3D.add(sl.build(material, ctx))
 
     scene.add(garment.object3D)
     garment.settle(5.0)          // capture-safe: hung cloth, never mid-fall
+  }
+
+  /**
+   * Front and back, side by side.
+   *
+   * Every plate in the reference clips shows both views — and Natalie's style
+   * sheet needs front, side and back, with the side justified by closure
+   * placement. One draggable view was never enough: a designer judges a back
+   * neckline and a hem sweep from behind, not by rotating and remembering.
+   *
+   * Done with scissor + viewport on one renderer rather than two canvases: two
+   * WebGL contexts for the same scene is wasteful, and the cloth would have to be
+   * simulated twice or shared awkwardly.
+   */
+  const _size = new THREE.Vector2()
+  function renderPair() {
+    // getSize returns CSS-pixel size, which is what setViewport/setScissor expect.
+    // Deriving it from domElement.width (a drawing-buffer size) and dividing by
+    // the pixel ratio is a subtly different number and rendered nothing.
+    renderer.getSize(_size)
+    const w = _size.x, h = _size.y
+    const half = w / 2
+    renderer.setScissorTest(true)
+    for (const [i, angle] of [[0, az], [1, az + Math.PI]].entries()) {
+      renderer.setViewport(i * half, 0, half, h)
+      renderer.setScissor(i * half, 0, half, h)
+      camera.aspect = half / h
+      camera.position.set(Math.sin(angle) * 2.62, 0.38, Math.cos(angle) * 2.62)
+      camera.lookAt(0, 0.22, 0)
+      camera.updateProjectionMatrix()
+      renderer.render(scene, camera)
+    }
+    renderer.setScissorTest(false)
   }
 
   const clock = new THREE.Clock()
@@ -181,10 +222,17 @@ export function createBodyPreview(mount) {
     requestAnimationFrame(tick)
     const dt = Math.min(clock.getDelta(), 1 / 30)
     az += (targetAz - az) * 0.09
-    camera.position.set(Math.sin(az) * 2.45, 0.38, Math.cos(az) * 2.45)
-    camera.lookAt(0, 0.22, 0)
     garment?.update(dt)
-    renderer.render(scene, camera)
+    if (pairView) renderPair()
+    else {
+      renderer.getSize(_size)
+      renderer.setViewport(0, 0, _size.x, _size.y)
+      camera.aspect = _size.x / _size.y
+      camera.position.set(Math.sin(az) * 2.45, 0.38, Math.cos(az) * 2.45)
+      camera.lookAt(0, 0.22, 0)
+      camera.updateProjectionMatrix()
+      renderer.render(scene, camera)
+    }
   }
   resize()
   tick()
@@ -194,9 +242,15 @@ export function createBodyPreview(mount) {
     setSource,
     necklines: Object.entries(NECKLINES).map(([k, v]) => ({ key: k, name: v.name })),
     setNeckline(k) { currentNeckline = k },
-    setDetail(kind, n) { if (kind === 'shoulder') shoulderN = n; else bustN = n },
+    setDetail(kind, n) {
+      if (kind === 'shoulder') shoulderN = n
+      else if (kind === 'sleeve') sleeveN = n
+      else bustN = n
+    },
     setSpec(s) { spec = s },
     setView: a => { targetAz = a },
+    setPair(on) { pairView = on },
+    isPair: () => pairView,
     /** Exact settled silhouette — pixels are ambiguous, geometry is not. */
     measure() {
       if (!garment) return null
