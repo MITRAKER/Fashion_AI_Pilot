@@ -152,9 +152,43 @@ export async function createModelAvatar(envMap) {
 
   gait(0)
 
+  /**
+   * Where each garment hotspot lives ON THE RIG. Parenting to a bone rather than
+   * to fixed coordinates means a marker tracks the body through the walk and
+   * survives any change to proportions — the hardcoded offsets went stale the
+   * moment the figure was replaced.
+   *
+   * Offsets are in bone-local space, scaled by the model's uniform scale.
+   */
+  const ATTACH = {
+    collar:  ['neck',   [0, 0.02, 0.06]],
+    closure: ['spine1', [0, 0.06, 0.13]],
+    cuff:    ['lFore',  [0, -0.18, 0.02]],
+    seam:    ['hips',   [0.14, 0.06, 0]],
+    hem:     ['lLeg',   [0, -0.10, 0.06]],
+  }
+
   return {
     group,
     torsoGroup: bones.spine2 ?? root,
+
+    /**
+     * An Object3D parented to the right bone for a hotspot id, or null if this
+     * rig has no sensible home for it (the caller then falls back).
+     */
+    attach(id) {
+      const spec = ATTACH[id]
+      if (!spec) return null
+      const bone = bones[spec[0]]
+      if (!bone) return null
+      const o = new THREE.Object3D()
+      // Bone space is unscaled; divide so the offset lands where intended.
+      const s = root.scale.x || 1
+      o.position.set(spec[1][0] / s, spec[1][1] / s, spec[1][2] / s)
+      bone.add(o)
+      return o
+    },
+
     coat: skinned,
     get z() { return group.position.z },
     get isAtPit() { return Math.abs(group.position.z - RUNWAY_PIT_Z) < 0.25 },

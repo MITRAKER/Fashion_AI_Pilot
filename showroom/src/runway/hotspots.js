@@ -94,10 +94,15 @@ export function createHotspots(avatar, camera, renderer) {
   let open = null
 
   const anchors = SPOTS.map((s, i) => {
-    // Parented to the rig so a marker tracks the body through the walk.
-    const obj = new THREE.Object3D()
-    obj.position.set(...s.at)
-    avatar.group.add(obj)
+    // Parented to the rig so a marker tracks the body through the walk. Bone
+    // attachment is preferred: fixed coordinates go stale whenever the figure
+    // changes, which is exactly what happened when the rigged model landed.
+    let obj = avatar.attach?.(s.id) ?? null
+    if (!obj) {
+      obj = new THREE.Object3D()
+      obj.position.set(...s.at)
+      avatar.group.add(obj)
+    }
 
     const el = document.createElement('button')
     el.className = 'hs-dot'
