@@ -199,41 +199,71 @@ const D2R = Math.PI / 180
 // ?shot=1 pins a framing — used when reviewing each one in isolation.
 const forcedShot = new URLSearchParams(location.search).get('shot')
 let shotIndex = forcedShot === null ? 0 : Number(forcedShot) % SHOTS.length
+let prevIndex = shotIndex
 let shotTime = 0
-let cutPending = true
+let blendT = 1                      // 1 = settled on the current shot
+
+/**
+ * The reference this is held to never cuts — the camera glides continuously.
+ * So the SHOTS above became keyframes rather than cuts: every parameter (fov,
+ * placement, aim, yaw/pitch/roll) is blended from the outgoing framing to the
+ * incoming one over BLEND seconds on a cubic ease. There is no snap anywhere in
+ * this function.
+ *
+ * Blending the PARAMETERS rather than the resulting matrices is what keeps the
+ * move readable: the camera travels a smooth arc through the shot space instead
+ * of sliding along a straight line between two poses and swinging its aim.
+ */
+const BLEND = 2.6
+
+const EASE = k => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2)
+const mix = (a, b, k) => a + (b - a) * k
 
 function updateCamera(dt, z, t) {
   shotTime += dt
-  const shot = SHOTS[shotIndex]
-  if (forcedShot === null && shotTime >= shot.hold) {
+
+  if (forcedShot === null && blendT >= 1 && shotTime >= SHOTS[shotIndex].hold) {
+    prevIndex = shotIndex
     shotIndex = (shotIndex + 1) % SHOTS.length
     shotTime = 0
-    cutPending = true
+    blendT = 0
   }
-  const s = SHOTS[shotIndex]
+  if (blendT < 1) blendT = Math.min(1, blendT + dt / BLEND)
+
+  const a = SHOTS[prevIndex]
+  const b = SHOTS[shotIndex]
+  const k = EASE(blendT)
+  const p = key => mix(a[key], b[key], k)
 
   // Slow idle drift — §2 caps it at 2° amplitude over an 8s-plus period.
   const driftYaw = Math.sin(t * 0.52) * 1.1
   const driftPitch = Math.sin(t * 0.37 + 1.9) * 0.7
-  // Gentle push-in over the life of the shot, eased.
-  const k = Math.min(shotTime / s.hold, 1)
-  const dolly = 1 - s.push * (k * k * (3 - 2 * k))
 
-  camGoal.set(RUNWAY_X + s.side, s.height, z + s.back * dolly)
-  camAim.set(RUNWAY_X, s.aim, z)
+  // Push-in continues across the blend, so the move never stalls mid-transition.
+  const prog = Math.min(shotTime / b.hold, 1)
+  const dolly = 1 - p('push') * (prog * prog * (3 - 2 * prog))
 
-  if (cutPending) { camera.position.copy(camGoal); cutPending = false }
-  else camera.position.lerp(camGoal, 1 - Math.pow(0.0006, dt))
+  camGoal.set(RUNWAY_X + p('side'), p('height'), z + p('back') * dolly)
+  camAim.set(RUNWAY_X, p('aim'), z)
+
+  // A light critically-damped follow on top of the blended goal. Frame-rate
+  // independent, so the move is identical at 30fps and 144fps.
+  camera.position.lerp(camGoal, 1 - Math.pow(0.0016, dt))
 
   camera.lookAt(camAim)
-  camera.rotateY((s.yaw + driftYaw) * D2R)
-  camera.rotateX((s.pitch + driftPitch) * D2R)
-  camera.rotateZ(s.roll * D2R)
+  camera.rotateY((p('yaw') + driftYaw) * D2R)
+  camera.rotateX((p('pitch') + driftPitch) * D2R)
+  camera.rotateZ(p('roll') * D2R)
 
-  if (camera.fov !== s.fov) { camera.fov = s.fov; camera.updateProjectionMatrix() }
+  const fov = p('fov')
+  if (Math.abs(camera.fov - fov) > 1e-3) { camera.fov = fov; camera.updateProjectionMatrix() }
 
   focusTarget.set(avatar.group.position.x, avatar.group.position.y + 0.46, z)
 }
+
+// Start settled on the opening framing rather than easing in from the origin.
+updateCamera(0, avatar.z, 0)
+camera.position.copy(camGoal)
 
 function tick() {
   requestAnimationFrame(tick)
