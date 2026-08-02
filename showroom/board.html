@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Artwork → Collection Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,600&family=Manrope:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{ --ink:#0E0D0C; --paper:#F5F5F7; --card:#fff; --line:#DDDDE1;
+         --graphite:#4A4844; --chalk:#3757B8; --thread:#B3272D;
+         --mono:'IBM Plex Mono',monospace; --body:'Manrope',sans-serif;
+         --display:'Bodoni Moda',serif; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:var(--body);background:var(--paper);color:var(--ink)}
+  .wrap{max-width:1360px;margin:0 auto;padding:26px 30px 70px}
+
+  .top{display:flex;align-items:flex-end;gap:20px;border-bottom:2px solid var(--ink);padding-bottom:14px}
+  .top h1{font-family:var(--display);font-size:25px;font-weight:400}
+  .top small{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.18em;
+             text-transform:uppercase;color:var(--graphite);margin-top:3px}
+  .top .sp{flex:1}
+  select,input,button{font:inherit}
+  select,input{padding:8px 11px;border:1px solid var(--line);border-radius:4px;background:#fff}
+  input{width:110px}
+  button{padding:8px 15px;border:1px solid var(--ink);background:var(--ink);color:#fff;
+         border-radius:4px;cursor:pointer;font-size:13px}
+  button:hover{opacity:.86}
+
+  #status{font-family:var(--mono);font-size:11px;color:var(--graphite);padding:16px 0}
+  #board{opacity:0;transition:opacity .4s}
+  #board.ready{opacity:1}
+
+  .hero{display:grid;grid-template-columns:300px minmax(0,1fr);gap:26px;margin-top:22px}
+  .hero img{width:100%;border-radius:4px;border:1px solid var(--line);display:block}
+  .art-meta{font-family:var(--mono);font-size:10.5px;color:var(--graphite);margin-top:8px;line-height:1.7}
+  #rights{color:#2E7D5B}
+  h2{font-family:var(--display);font-size:34px;font-weight:400;letter-spacing:.01em}
+  #concept{color:var(--graphite);font-size:13.5px;line-height:1.75;margin-top:10px;max-width:68ch}
+
+  .sec{margin-top:34px}
+  .sec > h3{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;
+            color:var(--graphite);padding-bottom:9px;border-bottom:1px solid var(--line);margin-bottom:16px}
+
+  #palette{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+  .sw{display:flex;align-items:center;gap:11px;background:#fff;border:1px solid var(--line);
+      border-radius:4px;padding:10px 12px}
+  .chip{width:34px;height:34px;border-radius:5px;border:1px solid rgba(0,0,0,.12);flex-shrink:0}
+  .sw b{display:block;font-size:12.5px;font-weight:500}
+  .sw small{font-family:var(--mono);font-size:9.5px;color:var(--graphite)}
+
+  #looks{display:grid;grid-template-columns:repeat(auto-fill,minmax(400px,1fr));gap:16px}
+  .look{background:#fff;border:1px solid var(--line);border-radius:4px;padding:16px}
+  .look-h{display:flex;align-items:center;gap:11px;margin-bottom:10px}
+  .look-h .num{width:26px;height:26px;border-radius:50%;background:var(--ink);color:#fff;
+               display:grid;place-items:center;font-family:var(--mono);font-size:11px}
+  .look-h b{font-size:14px;font-weight:600}
+  .look-h small{display:block;font-size:11px;color:var(--graphite)}
+  .look-sw{display:flex;gap:5px;margin-bottom:12px}
+  .look-sw i{width:26px;height:26px;border-radius:4px;border:1px solid rgba(0,0,0,.12)}
+  .look label{display:block;font-family:var(--mono);font-size:9px;letter-spacing:.14em;
+              text-transform:uppercase;color:var(--graphite);margin:9px 0 4px}
+  textarea{width:100%;border:1px solid var(--line);border-radius:4px;padding:9px 10px;
+           font-family:var(--mono);font-size:10.5px;line-height:1.6;resize:vertical;background:#FAFAFB}
+  .copy{margin-top:11px;width:100%}
+
+  #fabrics{display:flex;flex-wrap:wrap;gap:8px}
+  #fabrics span{padding:7px 12px;background:#fff;border:1px solid var(--line);border-radius:999px;font-size:12px}
+
+  .warn{margin-top:30px;padding:14px 16px;border:1px solid #E7CFCF;background:#FBF3F3;
+        border-radius:4px;font-size:12.5px;line-height:1.7;color:#7A2A2A}
+  .warn b{font-weight:600}
+
+  .up{padding:8px 15px;border:1px solid var(--ink);border-radius:4px;cursor:pointer;font-size:13px;background:#fff}
+  .up:hover{background:#f0f0f2}
+
+  #measures{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+  .m{background:#fff;border:1px solid var(--line);border-radius:4px;padding:12px 14px}
+  .m b{font-size:12px;font-weight:600}
+  .m .v{float:right;font-family:var(--mono);font-size:12px;color:var(--chalk)}
+  .m .bar{height:4px;background:#EEEEF1;border-radius:99px;margin:9px 0 7px;overflow:hidden}
+  .m .bar i{display:block;height:100%;background:var(--chalk)}
+  .m small{font-size:10px;color:var(--graphite);line-height:1.5;display:block}
+
+  #fabrics-why{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px}
+  .fab{background:#fff;border:1px solid var(--line);border-radius:4px;padding:15px 16px}
+  .fab-h{display:flex;align-items:center;gap:11px;margin-bottom:9px}
+  .fab-h .rank{width:24px;height:24px;border-radius:50%;background:var(--chalk);color:#fff;
+               display:grid;place-items:center;font-family:var(--mono);font-size:11px}
+  .fab-h b{font-size:14px}
+  .fab-h small{display:block;font-size:10.5px;color:var(--graphite);font-family:var(--mono)}
+  .fab p{font-size:12px;line-height:1.65;margin-top:7px}
+  .fab .beh{color:var(--ink)}
+  .fab .why,.fab .use{color:var(--graphite)}
+  .fab em{font-style:normal;font-family:var(--mono);font-size:9px;letter-spacing:.12em;
+          text-transform:uppercase;color:var(--chalk);margin-right:5px}
+
+  #shapes{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+  .shape{background:#fff;border:1px solid var(--line);border-radius:4px;padding:13px 15px}
+  .shape b{font-size:13px}
+  .shape p{font-size:11.5px;color:var(--graphite);line-height:1.6;margin-top:5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top">
+    <h1>Artwork → Collection<small>Two Rivers · SS27 · concept tool</small></h1>
+    <div class="sp"></div>
+    <select id="seed"></select>
+    <input id="objid" placeholder="Met ID" />
+    <button id="go">Build board</button>
+    <label class="up">Upload object<input id="upload" type="file" accept="image/*" hidden /></label>
+  </div>
+
+  <div id="status">Loading…</div>
+
+  <div id="board">
+    <div class="hero">
+      <div>
+        <img id="art" alt="Source artwork" />
+        <div class="art-meta">
+          <div id="art-title"></div>
+          <div id="art-meta"></div>
+          <div id="rights"></div>
+        </div>
+      </div>
+      <div>
+        <h2 id="title"></h2>
+        <p id="concept"></p>
+      </div>
+    </div>
+
+    <div class="sec">
+      <h3>What the source measures — <span id="engine-src"></span></h3>
+      <div id="measures"></div>
+    </div>
+
+    <div class="sec">
+      <h3>Materials it could be made in, and why</h3>
+      <div id="fabrics-why"></div>
+    </div>
+
+    <div class="sec">
+      <h3>Silhouette directions</h3>
+      <div id="shapes"></div>
+    </div>
+
+    <div class="sec">
+      <h3>Palette — measured from the canvas</h3>
+      <div id="palette"></div>
+    </div>
+
+    <div class="sec">
+      <h3>Fabrics &amp; materials</h3>
+      <div id="fabrics"></div>
+    </div>
+
+    <div class="sec">
+      <h3>The six looks — with generation prompts</h3>
+      <div id="looks"></div>
+    </div>
+
+    <div class="warn">
+      <b>Mood and presentation output.</b> Everything on this board is creative
+      direction. The technical-sketch prompts describe illustrations, not dimensioned
+      flats — they carry no measurements, no tolerances and no construction authority,
+      and must never be used as production input. A flat becomes production-relevant
+      only after a technical designer works it and a named human approves it.
+    </div>
+  </div>
+</div>
+<script type="module" src="/src/board.js"></script>
+</body>
+</html>
