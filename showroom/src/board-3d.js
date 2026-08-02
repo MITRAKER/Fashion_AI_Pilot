@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { createStudioEnvironment } from './env/studio.js'
 import { createDressForm } from './form.js'
-import { createGarment } from './garment.js'
+import { createDress, NECKLINES } from './dress.js'
 
 /**
  * The concept, worn.
@@ -49,6 +49,7 @@ export function createBodyPreview(mount) {
   scene.add(form.group)
 
   let garment = null
+  let currentNeckline = 'sweetheart'
   let az = 0.35, targetAz = 0.35
 
   function resize() {
@@ -70,14 +71,43 @@ export function createBodyPreview(mount) {
   })
 
   /**
+   * Build a texture from the source image itself.
+   *
+   * This is the move from the reference clip: the designer does not draw a dress
+   * "inspired by" the moth, they warp the moth's own wing onto the figure, so the
+   * veins, the gradient and the yellow spot survive into the garment. The 3D
+   * equivalent is to map the source onto the draped cloth — the print then follows
+   * the fold instead of being painted flat.
+   *
+   * The garment keeps PlaneGeometry's UVs through simulation (the solver moves
+   * vertices, never the topology), so the mapping stays stable as it drapes.
+   */
+  let sourceTex = null
+  function setSource(img) {
+    sourceTex?.dispose()
+    sourceTex = new THREE.Texture(img)
+    sourceTex.colorSpace = THREE.SRGBColorSpace
+    sourceTex.wrapS = THREE.MirroredRepeatWrapping
+    sourceTex.wrapT = THREE.ClampToEdgeWrapping
+    sourceTex.anisotropy = 8
+    sourceTex.needsUpdate = true
+  }
+
+  /**
    * @param {{name,drape,mat}} fabric  from fabric-engine
    * @param {string} hexColour         from the measured palette
+   * @param {'solid'|'print'|'mixed'} mode
+   *        solid  the cloth is a colour from the measured palette
+   *        print  the source image IS the cloth, following the drape
+   *        mixed  the source printed and tinted into the palette colour, the way
+   *               the reference gown carries the moth's wing as a cape over a
+   *               solid column — one garment reading as both
    */
-  function dress(fabric, hexColour) {
+  function dress(fabric, hexColour, mode = 'solid') {
     if (garment) {
       scene.remove(garment.object3D)
-      garment.object3D.geometry.dispose()
-      garment.material.dispose()
+      garment.dispose?.()
+      garment.material?.dispose?.()
     }
 
     const m = fabric?.mat ?? {}
@@ -91,13 +121,35 @@ export function createBodyPreview(mount) {
       transparent: (m.opacity ?? 1) < 0.999,
       opacity: m.opacity ?? 1,
     })
+    if (mode !== 'solid' && sourceTex) {
+      material.map = sourceTex
+      // three multiplies map by color. White lets the source through untouched;
+      // the palette colour pulls it toward the chosen story without losing the
+      // source's structure — that is the mixture.
+      material.color.set(mode === 'print' ? 0xffffff : (hexColour || '#c8a57e'))
+      if (mode === 'mixed') material.color.offsetHSL(0, -0.05, 0.34)
+      // The wing is wider than it is tall on a skirt panel; repeat across the
+      // body and let the vertical run once from shoulder to hem.
+      // Museum photographs include the picture frame, which maps onto the
+      // garment as a black band across the shoulders. Inset the UVs so only the
+      // canvas is used — cropping is cheaper and safer than trying to detect the
+      // frame, and a designer would trim the reference before using it anyway.
+      const INSET = 0.07
+      sourceTex.repeat.set(2.2 * (1 - INSET * 2), 1 - INSET * 2)
+      sourceTex.offset.set(INSET, INSET)
+      material.roughness = Math.min((m.roughness ?? 0.7) + 0.08, 1)
+    }
+
     material.sheen = m.sheen ?? 0.6
     material.sheenRoughness = m.sheenRough ?? 0.35
     // Sheen a touch lighter than the body colour, so a backlit edge separates.
     material.sheenColor = new THREE.Color(hexColour || '#c8a57e')
     material.sheenColor.offsetHSL(0, -0.1, 0.2)
 
-    garment = createGarment(env.envMap, form, { drape: fabric?.drape, material })
+    garment = createDress(form, material, {
+      drape: fabric?.drape,
+      neckline: currentNeckline,
+    })
     scene.add(garment.object3D)
     garment.settle(5.0)          // capture-safe: hung cloth, never mid-fall
   }
@@ -117,6 +169,9 @@ export function createBodyPreview(mount) {
 
   return {
     dress,
+    setSource,
+    necklines: Object.entries(NECKLINES).map(([k, v]) => ({ key: k, name: v.name })),
+    setNeckline(k) { currentNeckline = k },
     setView: a => { targetAz = a },
     /** Exact settled silhouette — pixels are ambiguous, geometry is not. */
     measure() {

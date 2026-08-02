@@ -143,6 +143,11 @@
          border-top:1px dotted var(--line)}
   .cites span{font-family:var(--mono);font-size:9px;color:var(--graphite);
               background:#F4F4F6;padding:3px 7px;border-radius:3px}
+
+  .pt{padding:4px 10px;font-family:var(--mono);font-size:9px;letter-spacing:.1em;
+      text-transform:uppercase;border-radius:99px;border:1px solid var(--line);
+      background:#fff;color:var(--graphite);cursor:pointer}
+  .pt.on{background:var(--chalk);border-color:var(--chalk);color:#fff}
 </style>
 </head>
 <body>
@@ -181,7 +186,7 @@
         </div>
         <div id="view3d"><span class="spin">Draping…</span></div>
         <div class="stage-f">
-          <span>Drag to turn</span>
+          <button id="print-toggle" class="pt on">Source as cloth</button>
           <span id="worn-phys"></span>
         </div>
         <div id="worn-swatches"></div>

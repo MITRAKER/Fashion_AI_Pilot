@@ -56,6 +56,8 @@ let currentFabrics = []
 let currentPalette = []
 let chosenFabric = 0
 let chosenColour = 0
+let sourceImg = null
+let mode = 'mixed'   // solid | print | mixed
 
 function wear() {
   const f = currentFabrics[chosenFabric]
@@ -67,9 +69,13 @@ function wear() {
     preview = createBodyPreview(mount)
     window.__PREVIEW__ = preview
   }
-  preview.dress(f, c.hex)
+  if (sourceImg) preview.setSource(sourceImg)
+  preview.dress(f, c.hex, sourceImg ? mode : 'solid')
   el('worn-name').textContent = f.name
   el('worn-col').textContent = `${c.name} · ${c.hex}`
+  const LABEL = { solid: 'Solid colour', print: 'Source as cloth', mixed: 'Mixed' }
+  const pb = el('print-toggle')
+  if (pb) { pb.classList.toggle('on', mode !== 'solid'); pb.textContent = LABEL[mode] }
   el('worn-phys').textContent =
     `bend ${f.drape?.bend ?? '—'} · weight ${Math.abs(f.drape?.gravity ?? 0).toFixed(1)}`
   document.querySelectorAll('.fab').forEach((n, i) => n.classList.toggle('on', i === chosenFabric))
@@ -182,6 +188,7 @@ async function build(id) {
     `from the canvas itself — each swatch is a cluster of the painting's own pixels, ` +
     `named in the vocabulary a designer would use, with the share of canvas it occupies.`
 
+  sourceImg = img
   renderEngine(img, palette, art.title)
   el('palette').innerHTML = swatchRow(palette)
   el('looks').innerHTML = LOOKS.map(l => lookCard(l, palette, art)).join('')
@@ -262,6 +269,12 @@ function renderEngine(img, palette, sourceName) {
   document.querySelectorAll('#worn-swatches i').forEach((n, i) => {
     n.onclick = () => { chosenColour = i; wear() }
   })
+  const pt = el('print-toggle')
+  // Cycle rather than toggle: three states, and a designer wants to compare them.
+  if (pt) pt.onclick = () => {
+    mode = mode === 'mixed' ? 'print' : mode === 'print' ? 'solid' : 'mixed'
+    wear()
+  }
   document.querySelectorAll('.fab').forEach((n, i) => {
     n.onclick = () => { chosenFabric = i; wear() }
   })
@@ -295,6 +308,7 @@ el('upload').onchange = e => {
       'A capsule drawn from your reference. The palette is measured from the image ' +
       'itself, and the materials below are reasoned from how the object actually ' +
       'behaves — edge, texture, contrast and saturation.'
+    sourceImg = img
     renderEngine(img, palette, file.name)
     el('palette').innerHTML = swatchRow(palette)
     el('looks').innerHTML = LOOKS.map(l => lookCard(l, palette,
