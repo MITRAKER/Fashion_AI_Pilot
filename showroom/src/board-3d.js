@@ -3,6 +3,7 @@ import { createStudioEnvironment } from './env/studio.js'
 import { createDressForm } from './form.js'
 import { createDress, NECKLINES } from './dress.js'
 import { SHOULDER, BUST } from './details.js'
+import { toDressOptions } from './garment-spec.js'
 
 /**
  * The concept, worn.
@@ -53,6 +54,7 @@ export function createBodyPreview(mount) {
   let currentNeckline = 'sweetheart'
   let shoulderN = 0   // 0 = none
   let bustN = 0
+  let spec = null
   let az = 0.35, targetAz = 0.35
 
   function resize() {
@@ -149,10 +151,12 @@ export function createBodyPreview(mount) {
     material.sheenColor = new THREE.Color(hexColour || '#c8a57e')
     material.sheenColor.offsetHSL(0, -0.1, 0.2)
 
-    garment = createDress(form, material, {
-      drape: fabric?.drape,
-      neckline: currentNeckline,
-    })
+    // The garment is a VIEW of the spec. When a spec is present it wins over the
+    // fabric card, because the panel has been used to correct it since.
+    const opts = spec
+      ? toDressOptions(spec)
+      : { drape: fabric?.drape, neckline: currentNeckline }
+    garment = createDress(form, material, opts)
     // Detail treatments build ON the garment, so a choice is visible on the body
     // rather than being a thumbnail in a menu.
     const ctx = {
@@ -161,8 +165,10 @@ export function createBodyPreview(mount) {
         return q ? Math.hypot(q[0], q[2]) : 0.12
       },
     }
-    const sh = SHOULDER.find(s => s.n === shoulderN)
-    const bu = BUST.find(s => s.n === bustN)
+    const sN = spec ? (toDressOptions(spec).shoulderDetail || shoulderN) : shoulderN
+    const bN = spec ? (toDressOptions(spec).bustDetail || bustN) : bustN
+    const sh = SHOULDER.find(s => s.n === sN)
+    const bu = BUST.find(s => s.n === bN)
     if (sh) garment.object3D.add(sh.build(material, ctx))
     if (bu) garment.object3D.add(bu.build(material, ctx))
 
@@ -189,6 +195,7 @@ export function createBodyPreview(mount) {
     necklines: Object.entries(NECKLINES).map(([k, v]) => ({ key: k, name: v.name })),
     setNeckline(k) { currentNeckline = k },
     setDetail(kind, n) { if (kind === 'shoulder') shoulderN = n; else bustN = n },
+    setSpec(s) { spec = s },
     setView: a => { targetAz = a },
     /** Exact settled silhouette — pixels are ambiguous, geometry is not. */
     measure() {

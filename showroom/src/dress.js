@@ -37,7 +37,10 @@ const BODICE_TOP = 0.615
 
 export function createDress(form, material, opts = {}) {
   const group = new THREE.Group()
-  const neck = NECKLINES[opts.neckline] || NECKLINES.sweetheart
+  const base = NECKLINES[opts.neckline] || NECKLINES.sweetheart
+  // The spec can nudge the neckline height without changing its shape family,
+  // which is what "lower the neckline" means when the style stays sweetheart.
+  const neck = opts.necklineY != null ? { ...base, front: opts.necklineY } : base
   const drape = { bend: 0.10, gravity: -5.6, damp: 0.964, flare: 0.30, ...(opts.drape || {}) }
   const length = opts.length ?? 0.78
 

@@ -3,6 +3,8 @@ import { analyseImage, suggestFabrics, suggestSilhouettes } from './fabric-engin
 import { createBodyPreview } from './board-3d.js'
 import { consultSpecialists } from './specialists.js'
 import { SHOULDER, BUST, recommend } from './details.js'
+import { defaultSpec, describe } from './garment-spec.js'
+import { correct, undo, EXAMPLES } from './correct.js'
 
 /**
  * Artwork → capsule collection board.
@@ -58,6 +60,8 @@ let currentPalette = []
 let chosenFabric = 0
 let chosenColour = 0
 let sourceImg = null
+let spec = defaultSpec()
+let lastChanges = []
 let mode = 'mixed'   // solid | print | mixed
 
 function wear() {
@@ -70,6 +74,14 @@ function wear() {
     preview = createBodyPreview(mount)
     window.__PREVIEW__ = preview
   }
+  // The fabric card writes into the spec, so a later correction edits the same
+  // document rather than fighting it.
+  const fab = spec.components.find(x => x.id === 'fabric')
+  if (fab && f) {
+    fab.name = f.name
+    if (f.drape) { fab.bend = f.drape.bend; fab.weight = Math.abs(f.drape.gravity) }
+  }
+  preview.setSpec(spec)
   if (sourceImg) preview.setSource(sourceImg)
   preview.dress(f, c.hex, sourceImg ? mode : 'solid')
   el('worn-name').textContent = f.name
@@ -77,6 +89,7 @@ function wear() {
   const LABEL = { solid: 'Solid colour', print: 'Source as cloth', mixed: 'Mixed' }
   const pb = el('print-toggle')
   if (pb) { pb.classList.toggle('on', mode !== 'solid'); pb.textContent = LABEL[mode] }
+  renderSpec()
   el('worn-phys').textContent =
     `bend ${f.drape?.bend ?? '—'} · weight ${Math.abs(f.drape?.gravity ?? 0).toFixed(1)}`
   document.querySelectorAll('.fab').forEach((n, i) => n.classList.toggle('on', i === chosenFabric))
@@ -213,6 +226,45 @@ async function build(id) {
  * to fabrics and silhouettes — each with the reason stated, so a designer can
  * disagree with it rather than just accept or reject a list.
  */
+/** The spec, its history, and the reply to the last instruction. */
+function renderSpec() {
+  const s = el('spec-json')
+  if (!s) return
+  s.textContent = JSON.stringify(
+    { garmentType: spec.garmentType, units: spec.units, baseSize: spec.baseSize,
+      components: spec.components, unresolved: spec.unresolved }, null, 1)
+  const h = el('spec-history')
+  if (h) {
+    h.innerHTML = spec.history.length
+      ? [...spec.history].reverse().slice(0, 6).map(e =>
+          `<li><b>${e.said}</b>${e.changes.map(c => `<span>${c}</span>`).join('')}</li>`).join('')
+      : '<li class="empty">No corrections yet.</li>'
+  }
+}
+
+function say(text) {
+  const out = el('say-out')
+  const res = correct(spec, text)
+  lastChanges = res.applied
+
+  const parts = []
+  if (res.applied.length) {
+    parts.push(`<div class="ok"><em>Applied</em>${
+      res.applied.map(c => `<span>${describe(c)}</span>`).join('')}</div>`)
+  }
+  if (res.refused.length) {
+    parts.push(res.refused.map(r =>
+      `<div class="no"><em>Refused: ${r.text}</em><span>${r.why}</span></div>`).join(''))
+  }
+  if (res.unknown) {
+    parts.push(`<div class="huh"><em>Not understood</em><span>Nothing in that maps to a parameter I hold. Try: ${
+      EXAMPLES.slice(0, 3).map(e => `“${e}”`).join(', ')}.</span></div>`)
+  }
+  out.innerHTML = parts.join('')
+  if (res.applied.length) wear()
+  else renderSpec()
+}
+
 function renderEngine(img, palette, sourceName) {
   const a = analyseImage(img)
   const fabrics = suggestFabrics(a, 5)
@@ -294,6 +346,34 @@ function renderEngine(img, palette, sourceName) {
   document.querySelectorAll('#worn-swatches i').forEach((n, i) => {
     n.onclick = () => { chosenColour = i; wear() }
   })
+  // The correction panel — talk to the garment.
+  const form = el('say-form')
+  if (form && !form.dataset.wired) {
+    form.dataset.wired = '1'
+    form.onsubmit = e => {
+      e.preventDefault()
+      const v = el('say-input').value.trim()
+      if (!v) return
+      say(v)
+      el('say-input').value = ''
+    }
+    el('say-undo').onclick = () => {
+      if (!lastChanges.length) return
+      undo(spec, lastChanges)
+      lastChanges = []
+      el('say-out').innerHTML = '<div class="ok"><em>Reverted</em><span>Last instruction undone.</span></div>'
+      wear()
+    }
+    el('say-examples').innerHTML = EXAMPLES
+      .map(x => `<button type="button" class="ex">${x}</button>`).join('')
+    el('say-examples').onclick = e => {
+      if (!e.target.classList.contains('ex')) return
+      el('say-input').value = e.target.textContent
+      say(e.target.textContent)
+      el('say-input').value = ''
+    }
+  }
+
   const pt = el('print-toggle')
   // Cycle rather than toggle: three states, and a designer wants to compare them.
   if (pt) pt.onclick = () => {

@@ -166,6 +166,35 @@
   .dtl .tag{display:inline-block;margin-top:8px;font-family:var(--mono);font-size:8px;
             letter-spacing:.1em;text-transform:uppercase;background:var(--chalk);color:#fff;
             padding:2px 7px;border-radius:99px}
+
+  .talk{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start}
+  @media(max-width:1100px){.talk{grid-template-columns:1fr}}
+  #say-form{display:flex;gap:8px}
+  #say-input{flex:1;width:auto;font-size:14px}
+  .ghost{background:#fff;color:var(--ink)}
+  .ex-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .ex{background:#fff;color:var(--graphite);border:1px solid var(--line);border-radius:99px;
+      padding:5px 11px;font-size:11px;cursor:pointer}
+  .ex:hover{border-color:var(--chalk);color:var(--chalk)}
+  #say-out{margin-top:14px;display:grid;gap:8px}
+  #say-out div{padding:11px 13px;border-radius:4px;font-size:12.5px;line-height:1.65;
+               border-left:3px solid var(--line);background:#fff;border:1px solid var(--line)}
+  #say-out .ok{border-left-color:#2E7D5B}
+  #say-out .no{border-left-color:var(--thread)}
+  #say-out .huh{border-left-color:var(--graphite)}
+  #say-out em{display:block;font-style:normal;font-family:var(--mono);font-size:9px;
+              letter-spacing:.12em;text-transform:uppercase;color:var(--graphite);margin-bottom:5px}
+  #say-out .ok em{color:#2E7D5B}
+  #say-out .no em{color:var(--thread)}
+  #say-out span{display:block}
+  .hist{list-style:none;display:grid;gap:7px}
+  .hist li{background:#fff;border:1px solid var(--line);border-radius:4px;padding:9px 12px;font-size:12px}
+  .hist li b{display:block;font-weight:600;margin-bottom:3px}
+  .hist li span{display:block;font-family:var(--mono);font-size:10px;color:var(--graphite)}
+  .hist .empty{color:var(--graphite);font-style:italic}
+  #spec-json{background:#fff;border:1px solid var(--line);border-radius:4px;padding:12px;
+             font-family:var(--mono);font-size:9.5px;line-height:1.6;color:var(--graphite);
+             max-height:420px;overflow:auto;white-space:pre-wrap}
 </style>
 </head>
 <body>
@@ -208,6 +237,27 @@
           <span id="worn-phys"></span>
         </div>
         <div id="worn-swatches"></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <h3>Talk to the garment — correct it in words</h3>
+      <div class="talk">
+        <div>
+          <form id="say-form" autocomplete="off">
+            <input id="say-input" placeholder="make it a lot longer&hellip;" />
+            <button type="submit">Apply</button>
+            <button type="button" id="say-undo" class="ghost">Undo</button>
+          </form>
+          <div id="say-examples" class="ex-row"></div>
+          <div id="say-out"></div>
+          <h4 class="lib-h">Correction history</h4>
+          <ul id="spec-history" class="hist"></ul>
+        </div>
+        <div>
+          <h4 class="lib-h">Garment spec</h4>
+          <pre id="spec-json"></pre>
+        </div>
       </div>
     </div>
 
