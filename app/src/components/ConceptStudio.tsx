@@ -57,6 +57,10 @@ export function ConceptStudio() {
   const [specTick, setSpecTick] = useState(0)   // spec is a ref; this redraws it
   const [measured, setMeasured] = useState<{ width: number; depth: number; hemY: number } | null>(null)
 
+  // One photograph per view; the 3D camera follows the same buttons.
+  const [view, setView] = useState<'front' | 'side' | 'back'>('front')
+  const [shots, setShots] = useState<Record<string, string>>({})
+  const seedRef = useRef(Math.floor(Math.random() * 1e6))
   const [plate, setPlate] = useState<string | null>(null)
   const [plateErr, setPlateErr] = useState<string | null>(null)
   const [plateBusy, setPlateBusy] = useState(false)
@@ -191,7 +195,10 @@ export function ConceptStudio() {
     return { mime: 'image/jpeg', data: c.toDataURL('image/jpeg', 0.9).split(',')[1] }
   }
 
-  const makePlate = async (provider: 'gemini' | 'pollinations') => {
+  const AZ = { front: 0, side: Math.PI / 2, back: Math.PI } as const
+  useEffect(() => { previewRef.current?.setView(AZ[view]) }, [view])
+
+  const makePlate = async (provider: 'gemini' | 'pollinations', which = view) => {
     setPlateBusy(true); setPlateErr(null)
     const chosen = [
       SHOULDER.find(d => d.n === detail.shoulder),
@@ -204,6 +211,8 @@ export function ConceptStudio() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           provider,
+          view: which,
+          seed: seedRef.current,
           sourceName, analysis, palette, findings,
           fabric: fabrics[fabricI],
           details: chosen,
@@ -214,11 +223,13 @@ export function ConceptStudio() {
       const j = await r.json()
       setPlatePrompt(j.prompt ?? null)
       if (j.ok) {
-        setPlate(`data:${j.mime};base64,${j.data}`)
+        const url = `data:${j.mime};base64,${j.data}`
+        setShots(s => ({ ...s, [which]: url }))
+        setPlate(url)
         // Gemini returns the whole board; the free path returns the figure only
         // and we compose the board around it.
         setComposed(!!j.figureOnly)
-      } else { setPlate(null); setPlateErr(j.error ?? `Failed (${r.status}).`) }
+      } else { setPlateErr(j.error ?? `Failed (${r.status}).`) }
     } catch (e: any) {
       setPlate(null); setPlateErr(String(e?.message ?? e))
     } finally { setPlateBusy(false) }
@@ -289,24 +300,28 @@ export function ConceptStudio() {
                   <div className="cs-stage" ref={mountRef} />
                   <figcaption>
                     <b>Simulated</b>
-                    <span>measured drape · {fabrics[fabricI]?.name}</span>
+                    <span>{view} · measured drape · {fabrics[fabricI]?.name}</span>
                   </figcaption>
                 </figure>
                 <figure className="cs-pane">
                   <div className="cs-shot">
-                    {plate
-                      ? <img src={plate} alt={`Rendered garment from ${sourceName}`} />
+                    {shots[view]
+                      ? <img src={shots[view]} alt={`${sourceName}, ${view} view`} />
                       : (
                         <div className="cs-shot-none">
                           {plateBusy
-                            ? <span className="cs-spin">Rendering the photograph…</span>
-                            : <span>Not rendered yet.</span>}
+                            ? <span className="cs-spin">Rendering the {view} view…</span>
+                            : <span>No photograph for the {view} view yet.</span>}
                         </div>
                       )}
                   </div>
                   <figcaption>
                     <b>Rendered</b>
-                    <span>{plate ? 'generated photograph' : 'press Render below'}</span>
+                    <span>
+                      {shots[view]
+                        ? `${view} view · separate generation, not the mesh turned`
+                        : 'press Render below'}
+                    </span>
                   </figcaption>
                 </figure>
               </div>
@@ -340,11 +355,26 @@ export function ConceptStudio() {
                 </p>
               )}
               <div className="cs-plate-bar" style={{ marginTop: 12 }}>
+                {/* One set of buttons drives both panes: the mesh rotates, the
+                    photograph switches to that angle's render. */}
+                {(['front', 'side', 'back'] as const).map(v => (
+                  <button key={v} className={`btn sm${view === v ? ' dark' : ''}`}
+                    onClick={() => setView(v)}>
+                    {v[0].toUpperCase() + v.slice(1)}
+                    {shots[v] && <i className="ss-dot" />}
+                  </button>
+                ))}
                 <button className="btn gold" onClick={() => void makePlate('pollinations')}
                   disabled={plateBusy}>
-                  {plateBusy ? 'Rendering…' : plate ? 'Render again — free' : 'Render the photograph — free'}
+                  {plateBusy ? 'Rendering…' : shots[view] ? `Redo ${view}` : `Render ${view} — free`}
                 </button>
-                <button className="btn" onClick={() => void makePlate('gemini')} disabled={plateBusy}>
+                <button className="btn" onClick={async () => {
+                  for (const v of ['front', 'side', 'back'] as const) await makePlate('pollinations', v)
+                }} disabled={plateBusy}>
+                  All three angles
+                </button>
+                <button className="btn ghost sm" onClick={() => void makePlate('gemini')}
+                  disabled={plateBusy}>
                   Use Gemini
                 </button>
               </div>
