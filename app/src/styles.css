@@ -806,3 +806,38 @@ td.flag { background: var(--blocker-bg); color: #9e2126; font-weight: 500; }
   border: 1px solid rgba(27,26,24,.12); border-radius: 2px; background: #fff; }
 .pl-flat-pair figcaption { margin-top: 4px; font-family: var(--mono); font-size: 9px;
   letter-spacing: .14em; text-transform: uppercase; color: #8a8375; text-align: center; }
+
+/* Simulation and render side by side, on the same garment. The mesh is the
+   measured drape; the photograph is what the look reads as. */
+.cs-two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.cs-pane { margin: 0; display: flex; flex-direction: column; min-width: 0; }
+.cs-pane .cs-stage, .cs-pane .cs-shot {
+  height: 460px; border-radius: 4px; overflow: hidden;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--panel-2), var(--panel-3));
+}
+/* The image must fill the pane exactly, not size to its own aspect ratio —
+   two panes of different heights cannot be compared side by side. A grid with
+   place-items:center sizes the item to content, so pin it instead. */
+.cs-shot { display: grid; place-items: center; position: relative; }
+.cs-shot img { position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; display: block; }
+.cs-shot-none { font-size: 12px; color: var(--text-3); text-align: center; padding: 20px; }
+.cs-spin::after {
+  content: ''; display: block; width: 18px; height: 18px; margin: 10px auto 0;
+  border: 2px solid var(--line-2); border-top-color: var(--gold);
+  border-radius: 50%; animation: cs-rot .8s linear infinite;
+}
+@keyframes cs-rot { to { transform: rotate(360deg); } }
+.cs-pane figcaption {
+  margin-top: 8px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap;
+  font-family: var(--mono); font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase;
+}
+.cs-pane figcaption b { color: var(--text); }
+.cs-pane figcaption span { color: var(--text-3); letter-spacing: .08em; }
+
+@media (max-width: 1200px) { .cs-two { grid-template-columns: 1fr; } }
+
+/* The two panes now own a full-width row, so give them a taller stage. */
+.cs-stage-card .cs-two .cs-stage,
+.cs-stage-card .cs-two .cs-shot { height: 560px; }

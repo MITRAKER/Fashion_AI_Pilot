@@ -271,15 +271,45 @@ export function ConceptStudio() {
 
       {ready && (
         <>
-          <div className="grid split">
-            {/* THE GARMENT */}
-            <div className="card tight cs-stage-card">
+          {/* THE GARMENT — full width, because the two panes are meant to be
+              compared and 328px each is not a comparison. */}
+          <div className="card tight cs-stage-card">
               <h3>Worn — {sourceName}</h3>
               <p className="sub">
                 The fabric choice drives the simulation, not just the label: bend and
                 weight come from the chosen cloth and change how the skirt falls.
               </p>
-              <div className="cs-stage" ref={mountRef} />
+              {/* Simulation and render, side by side and on the same garment.
+                  They answer different questions: the mesh is the measured drape
+                  of the chosen cloth and can be interrogated; the photograph is
+                  what the look reads as. Seeing them together is how you catch a
+                  render that has drifted from the spec. */}
+              <div className="cs-two">
+                <figure className="cs-pane">
+                  <div className="cs-stage" ref={mountRef} />
+                  <figcaption>
+                    <b>Simulated</b>
+                    <span>measured drape · {fabrics[fabricI]?.name}</span>
+                  </figcaption>
+                </figure>
+                <figure className="cs-pane">
+                  <div className="cs-shot">
+                    {plate
+                      ? <img src={plate} alt={`Rendered garment from ${sourceName}`} />
+                      : (
+                        <div className="cs-shot-none">
+                          {plateBusy
+                            ? <span className="cs-spin">Rendering the photograph…</span>
+                            : <span>Not rendered yet.</span>}
+                        </div>
+                      )}
+                  </div>
+                  <figcaption>
+                    <b>Rendered</b>
+                    <span>{plate ? 'generated photograph' : 'press Render below'}</span>
+                  </figcaption>
+                </figure>
+              </div>
               <div className="cs-worn">
                 <b>{fabrics[fabricI]?.name}</b>
                 <span className="mono">{palette[colourI]?.name} · {palette[colourI]?.hex}</span>
@@ -309,10 +339,24 @@ export function ConceptStudio() {
                   depth {measured.depth} · hem {measured.hemY}
                 </p>
               )}
+              <div className="cs-plate-bar" style={{ marginTop: 12 }}>
+                <button className="btn gold" onClick={() => void makePlate('pollinations')}
+                  disabled={plateBusy}>
+                  {plateBusy ? 'Rendering…' : plate ? 'Render again — free' : 'Render the photograph — free'}
+                </button>
+                <button className="btn" onClick={() => void makePlate('gemini')} disabled={plateBusy}>
+                  Use Gemini
+                </button>
+              </div>
+              {plateErr && (
+                <div className="cs-no" style={{ marginTop: 10 }}>
+                  <em>Not rendered</em><span>{plateErr}</span>
+                </div>
+              )}
             </div>
 
-            {/* MEASUREMENTS + SPEC */}
-            <div className="cs-col">
+          {/* MEASUREMENTS + SPEC */}
+          <div className="grid c2">
               <div className="card tight">
                 <h3>Measured from the source</h3>
                 {([
@@ -344,7 +388,6 @@ export function ConceptStudio() {
   components: spec.components, unresolved: spec.unresolved }, null, 1)}
                 </pre>
               </div>
-            </div>
           </div>
 
           {/* CORRECTION PANEL */}
