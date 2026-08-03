@@ -8,6 +8,7 @@ import { defaultSpec, describe, type Spec } from '@engine/garment-spec.js'
 import { correct, undo, EXAMPLES } from '@engine/correct.js'
 import { createBodyPreview, type BodyPreview } from '@engine/board-3d.js'
 import { Plate } from './Plate'
+import { cropToGarment } from '../crop'
 
 /**
  * The object → garment engine, inside the dashboard.
@@ -223,7 +224,9 @@ export function ConceptStudio() {
       const j = await r.json()
       setPlatePrompt(j.prompt ?? null)
       if (j.ok) {
-        const url = `data:${j.mime};base64,${j.data}`
+        const raw = `data:${j.mime};base64,${j.data}`
+        // Gemini returns a whole composed board; only the figure gets cropped.
+        const url = j.figureOnly ? await cropToGarment(raw, palette[colourI]?.hex) : raw
         setShots(s => ({ ...s, [which]: url }))
         setPlate(url)
         // Gemini returns the whole board; the free path returns the figure only
@@ -319,7 +322,7 @@ export function ConceptStudio() {
                     <b>Rendered</b>
                     <span>
                       {shots[view]
-                        ? `${view} view · separate generation, not the mesh turned`
+                        ? `${view} · cropped above the neckline · separate generation`
                         : 'press Render below'}
                     </span>
                   </figcaption>

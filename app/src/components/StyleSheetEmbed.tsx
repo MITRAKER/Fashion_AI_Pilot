@@ -4,6 +4,7 @@ import { hexForName } from '@engine/palette.js'
 import { defaultSpec } from '@engine/garment-spec.js'
 import { createBodyPreview, type BodyPreview } from '@engine/board-3d.js'
 import { ApprovalBadge } from './ui'
+import { cropToGarment } from '../crop'
 import type { PackField, Style, TrimRow } from '../../shared/types.ts'
 
 /**
@@ -133,8 +134,10 @@ export function StyleSheetEmbed({ style }: { style: Style }) {
         }),
       })
       const j = await r.json()
-      if (j.ok) setShots(s => ({ ...s, [which]: `data:${j.mime};base64,${j.data}` }))
-      else setShotErr(j.error ?? `Failed (${r.status}).`)
+      if (j.ok) {
+        const cropped = await cropToGarment(`data:${j.mime};base64,${j.data}`, colour?.hex)
+        setShots(s => ({ ...s, [which]: cropped }))
+      } else setShotErr(j.error ?? `Failed (${r.status}).`)
     } catch (e: any) {
       setShotErr(String(e?.message ?? e))
     } finally { setShotBusy(null) }
@@ -228,8 +231,9 @@ export function StyleSheetEmbed({ style }: { style: Style }) {
           )}
           {shot && (
             <span>
-              PHOTOGRAPH IS MACHINE-GENERATED · NOT A FACTORY INPUT · EACH ANGLE IS A
-              SEPARATE GENERATION, NOT ONE GARMENT TURNED — THE FORM BESIDE IT IS
+              PHOTOGRAPH IS MACHINE-GENERATED · NOT A FACTORY INPUT · CROPPED ABOVE THE
+              NECKLINE · EACH ANGLE IS A SEPARATE GENERATION, NOT ONE GARMENT TURNED —
+              THE FORM BESIDE IT IS
             </span>
           )}
         </div>

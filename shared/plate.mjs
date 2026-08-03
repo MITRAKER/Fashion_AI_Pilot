@@ -50,30 +50,71 @@ const POLLINATIONS = 'https://image.pollinations.ai/prompt'
  * cloth as close as the model can manage. It is not a guarantee.
  */
 const VIEW_CLAUSE = {
-  front: 'Photographed straight on from the front, the model facing the camera.',
-  side: 'Photographed from the side, a full profile, the model facing left. Show the side seam and how the garment sits over the hip.',
-  back: 'Photographed from directly behind, a back view, the model facing away from the camera. Show the centre back and the closure.',
+  front: 'Photographed straight on from the front.',
+  side: 'Photographed from the side, a full profile facing left. Show the side seam and how the garment sits over the hip.',
+  back: 'Photographed from directly behind, a back view. Show the centre back and the closure.',
 }
+
+/**
+ * No face — by changing the subject, not by asking for its absence.
+ *
+ * Two earlier attempts, both tested and both failed:
+ *
+ *   "no face, no head, no hair"  -> bald heads, faces intact. SANA has no
+ *                                   negative-prompt parameter; a negation in
+ *                                   the prompt is read as content, so naming
+ *                                   the head is what put a head in the frame.
+ *   "framed from the collarbone
+ *    down, a body crop"          -> ignored outright, full portrait returned.
+ *                                   Composition instructions do not hold either.
+ *
+ * What works is giving it a subject that has no face to begin with. A dress
+ * form is a real object the model knows, positively described, and it happens
+ * to be exactly what the simulated pane beside it shows — so the two panes now
+ * depict the same kind of thing, which makes them easier to compare, not
+ * harder.
+ *
+ * The reason this matters beyond taste: the faces were the weakest thing in
+ * every render, they pulled the eye off the cloth, and an invented human
+ * likeness on a garment plate is a liability nobody asked for.
+ */
+const SUBJECT =
+  'displayed on a headless dressmaker dress form, a matte linen tailor mannequin torso '
+  + 'on a slim wooden stand'
 
 function composeFigurePrompt(b) {
   const { sourceName, analysis, palette = [], fabric, details = [], spec, view = 'front' } = b
   const cols = palette.slice(0, 4).map(c => c.name.toLowerCase()).join(', ')
   const skirt = spec?.components?.find(c => c.id === 'skirt')
 
+  // Colour and cloth belong in the subject noun phrase, not in a trailing
+  // clause. Moving the mannequin wording in front of them turned every render
+  // white — a generic catalogue mannequin dress — because the later "Colours:"
+  // line carries far less weight than the noun being described.
+  const garment = [
+    palette[0]?.name?.toLowerCase(),
+    fabric?.name?.toLowerCase(),
+    spec?.garmentType?.replace(/_/g, ' ') ?? 'column dress',
+  ].filter(Boolean).join(' ')
+
   return [
-    `Full-length editorial fashion photograph of a model wearing a ${
-      spec?.garmentType?.replace(/_/g, ' ') ?? 'column dress'}, standing, plain seamless studio backdrop.`,
+    `Studio photograph of a ${garment} ${SUBJECT},`
+      + ` against a plain seamless pale grey studio backdrop.`,
     VIEW_CLAUSE[view] ?? VIEW_CLAUSE.front,
-    `The dress is a couture interpretation of "${sourceName}".`,
-    fabric && `Fabric: ${fabric.name}, ${fabric.hand}. ${fabric.behaviour}`,
+    `The ${garment} is a couture interpretation of "${sourceName}".`,
+    fabric && `The cloth is ${fabric.name} — ${fabric.hand}. ${fabric.behaviour}`,
     skirt && `Floor-skimming, about ${skirt.length}cm from the waist.`,
     details.filter(Boolean).map(d => d.name).length
       && `Details: ${details.filter(Boolean).map(d => d.name).join(', ')}.`,
-    cols && `Colours: ${cols}.`,
+    cols && `The whole garment is ${cols} — no white, no ivory.`,
     analysis && (analysis.edge > 0.4
       ? `Structured and sculptural, holding its own shape.`
       : `Soft and fluid, falling close to the body.`),
-    `Soft directional studio light, shallow depth of field, high-end fashion photography.`,
+    // Deliberately product-catalogue language, not "fashion photography" or
+    // "shallow depth of field" — both are portrait cues and pull a person back
+    // into the frame however the subject is described.
+    `Soft even studio light, e-commerce product catalogue photography, sharp throughout.`,
+    `The garment fills the frame.`,
     `No text, no lettering, no labels, no watermark, no logo, no border, no collage.`,
   ].filter(Boolean).join(' ')
 }
@@ -126,8 +167,9 @@ function composePrompt(b) {
   return [
     `A single-page couture concept board, photographed flat, on warm off-white paper.`,
     ``,
-    `SUBJECT. One full-length fashion photograph of a model wearing a ${
-      spec?.garmentType?.replace(/_/g, ' ') ?? 'column dress'} interpreted from "${sourceName}".`,
+    `SUBJECT. One studio photograph of a ${
+      spec?.garmentType?.replace(/_/g, ' ') ?? 'column dress'} interpreted from "${sourceName}",`
+      + ` ${SUBJECT}. The garment is the subject of the plate.`,
     fabric && `The garment is ${fabric.name} — ${fabric.hand}. ${fabric.behaviour} Render the cloth so that reads: ${fabric.why ?? ''}`,
     skirt && `Skirt length ${skirt.length}cm, flare ${skirt.flare}.`,
     detailLines.length && `Construction visible in the photograph: ${detailLines.join('; ')}.`,
