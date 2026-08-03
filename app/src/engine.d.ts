@@ -26,6 +26,15 @@ declare module '@engine/fabric-engine.js' {
   export function analyseImage(img: HTMLImageElement | HTMLCanvasElement): Analysis
   export function suggestFabrics(a: Analysis, limit?: number): Fabric[]
   export function suggestSilhouettes(a: Analysis): Silhouette[]
+  export const CATALOGUE: Fabric[]
+  /**
+   * Null when the text matches nothing — the caller must say so, not guess.
+   * `matchedOn: 'weave'` means the nearest entry by weave, not the same cloth
+   * (silk faille → Cotton faille); the caller must show that it is approximate.
+   */
+  export function findFabric(
+    text: string | null | undefined,
+  ): (Fabric & { matchedOn: 'name' | 'weave' }) | null
 }
 
 declare module '@engine/palette.js' {
@@ -37,6 +46,13 @@ declare module '@engine/palette.js' {
   }
   export function extractPalette(img: HTMLImageElement | HTMLCanvasElement, k?: number): Swatch[]
   export function nameColour(r: number, g: number, b: number): string
+  /**
+   * Name → colour, against the same vocabulary nameColour emits. Null when the
+   * name is not in the vocabulary; `matchedOn: 'word'` means nearest term.
+   */
+  export function hexForName(
+    text: string | null | undefined,
+  ): { name: string; hex: string; matchedOn: 'name' | 'word' } | null
 }
 
 declare module '@engine/specialists.js' {

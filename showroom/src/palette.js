@@ -54,9 +54,39 @@ const NAMES = [
   ['Madder red', 156, 56, 48], ['Dusty plum', 118, 90, 108],
   ['Aubergine', 74, 52, 68], ['Charcoal', 58, 58, 60],
   ['Graphite', 92, 92, 96], ['Pewter', 138, 138, 142],
+  // Dye names the vocabulary was missing. It already carries madder, ochre and
+  // verdigris; indigo is the most-used dye in the industry this serves.
+  ['Indigo', 52, 68, 106], ['Ecru', 214, 205, 184],
 ]
 
 const NAMED_LAB = NAMES.map(([n, r, g, b]) => [n, rgbToLab(r, g, b)])
+
+/**
+ * The reverse of nameColour: a colourway on a style record is a name
+ * ("Medium Indigo", "Ecru Overdye"), not a hex, and a preview needs a colour.
+ *
+ * Matches against the same vocabulary nameColour emits from, and returns null
+ * rather than guessing — an invented colourway hex on a style sheet reads as a
+ * decided one. `matchedOn: 'word'` means the nearest term, not the exact name.
+ *
+ * @returns {{name: string, hex: string, matchedOn: 'name'|'word'} | null}
+ */
+export function hexForName(text) {
+  if (!text) return null
+  const t = String(text).toLowerCase()
+  const out = (entry, matchedOn) =>
+    ({ name: entry[0], hex: hex(entry[1], entry[2], entry[3]), matchedOn })
+
+  const exact = NAMES.find(e => t.includes(e[0].toLowerCase()))
+  if (exact) return out(exact, 'name')
+
+  // Fall back to the distinctive word — "indigo" out of "Medium Indigo".
+  const word = NAMES.find(e => {
+    const last = e[0].toLowerCase().split(' ').pop()
+    return last.length > 3 && new RegExp(`\\b${last}\\b`).test(t)
+  })
+  return word ? out(word, 'word') : null
+}
 
 export function nameColour(r, g, b) {
   const lab = rgbToLab(r, g, b)

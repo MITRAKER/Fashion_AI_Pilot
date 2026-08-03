@@ -66,7 +66,7 @@ export function StyleRecord({ styleId, onBack }: { styleId: string; onBack: () =
 
       {tab === 'stylesheet' && (
         <>
-          <StyleSheetEmbed styleId={style.id} />
+          <StyleSheetEmbed style={style} />
           <MuseumSearch />
         </>
       )}

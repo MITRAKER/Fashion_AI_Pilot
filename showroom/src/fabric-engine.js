@@ -170,6 +170,16 @@ const FABRICS = [
     drape: { bend: 0.12, gravity: -8.2, damp: 0.955, flare: 0.08 }, mat: { roughness: 0.95, sheen: 1.0, sheenRough: 0.3, opacity: 1 },
   },
   {
+    // The catalogue was entirely couture silks, which left the pilot's own
+    // denim dress with no entry to simulate. A drape catalogue that cannot
+    // describe the collection it serves is incomplete, not principled.
+    name: 'Cotton denim', hand: 'dense, dry, stiff until broken in',
+    behaviour: 'Holds a crease and stands away from the body; softens with wash and wear.',
+    fit: a => a.edge * 1.3 + a.texture * 0.7 + (1 - a.chroma) * 0.5,
+    use: 'Structure in a workwear vocabulary — panels and topstitching read as the design.',
+    drape: { bend: 0.30, gravity: -7.6, damp: 0.958, flare: 0.12 }, mat: { roughness: 0.88, sheen: 0.18, sheenRough: 0.7, opacity: 1 },
+  },
+  {
     name: 'Technical taffeta', hand: 'papery, rustling, resilient',
     behaviour: 'Springs back from a crush and holds an inflated volume.',
     fit: a => a.edge * 1.9 + a.lightness * 0.6,
@@ -177,6 +187,40 @@ const FABRICS = [
     drape: { bend: 0.46, gravity: -4.0, damp: 0.970, flare: 0.22 }, mat: { roughness: 0.35, sheen: 0.4, sheenRough: 0.3, opacity: 1 },
   },
 ]
+
+/** The catalogue itself, for callers that already know the cloth by name. */
+export const CATALOGUE = FABRICS
+
+/**
+ * Look a fabric up from free text — a style sheet's fabric field reads
+ * "100% cotton denim, 10.5 oz, 148 cm width", not "Silk gazar".
+ *
+ * Returns null when nothing matches, on purpose. A style sheet that silently
+ * renders a default cloth is claiming a drape it has no basis for; the caller
+ * is expected to say "not in the catalogue" instead of showing a guess.
+ *
+ * @returns {(typeof FABRICS)[number] | null}
+ */
+export function findFabric(text) {
+  if (!text) return null
+  const t = String(text).toLowerCase()
+  // Longest name first, so "silk jacquard" is not swallowed by a "silk" match.
+  const byLength = [...FABRICS].sort((a, b) => b.name.length - a.name.length)
+
+  const exact = byLength.find(f => t.includes(f.name.toLowerCase()))
+  if (exact) return { ...exact, matchedOn: 'name' }
+
+  // Fall back to the weave word — "gazar", "bouclé", "velvet", "jacquard".
+  // This is deliberately marked approximate: "silk faille" landing on Cotton
+  // faille is the same weave in a different fibre, and the fibre is most of
+  // the drape. The caller must show that it is the nearest entry, not the
+  // cloth on the sheet.
+  const weave = byLength.find(f => {
+    const last = f.name.toLowerCase().split(' ').pop()
+    return last.length > 4 && t.includes(last)
+  })
+  return weave ? { ...weave, matchedOn: 'weave' } : null
+}
 
 /**
  * @returns {{name, hand, behaviour, use, why: string, score: number}[]}

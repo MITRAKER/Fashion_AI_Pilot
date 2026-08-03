@@ -608,3 +608,96 @@ td.flag { background: var(--blocker-bg); color: #9e2126; font-weight: 500; }
 @media (max-width: 1100px) {
   .cs-hits { grid-template-columns: repeat(3, 1fr); }
 }
+
+/* ---------------------------------------------------------------------------
+   STYLE SHEET — read off the style record, rendered with its provenance.
+   A field with no value shows as missing; it is never filled with a guess.
+--------------------------------------------------------------------------- */
+.ss {
+  background: var(--panel-2); color: var(--text); padding: 24px 28px 40px;
+  border: 1px solid var(--line-2); border-radius: 6px; margin: 16px 0 32px;
+}
+.ss-head {
+  display: flex; align-items: flex-end; gap: 24px; flex-wrap: wrap;
+  border-bottom: 2px solid var(--text); padding-bottom: 14px; margin-bottom: 20px;
+}
+.ss-brand { font-family: var(--serif); font-size: 24px; }
+.ss-brand small {
+  display: block; font-family: var(--mono); font-size: 10px; letter-spacing: .18em;
+  color: var(--text-3); text-transform: uppercase; margin-top: 2px;
+}
+.ss-title {
+  margin-left: auto; font-family: var(--mono); font-size: 11px; letter-spacing: .2em;
+  text-transform: uppercase; color: var(--text-2);
+}
+.ss-meta { font-family: var(--mono); font-size: 11px; color: var(--text-2);
+  line-height: 1.9; text-align: right; }
+.ss-meta b { color: var(--text); font-weight: 500; }
+
+.ss-grid { display: grid; grid-template-columns: 260px minmax(0, 1fr) 300px; gap: 20px; }
+.ss-col { display: grid; gap: 20px; align-content: start; }
+
+.ss-sec { background: var(--panel); border: 1px solid var(--line); border-radius: 4px;
+  padding: 16px 18px; }
+.ss-sec h3 {
+  font-family: var(--mono); font-size: 10px; letter-spacing: .16em;
+  text-transform: uppercase; color: var(--text-3); padding-bottom: 9px;
+  margin: 0 0 11px; border-bottom: 1px solid var(--line);
+}
+/* Label left, value right, provenance under the value. A three-way flex row
+   wrapped raggedly at this column width — the badge landed on its own line
+   left-aligned, disconnected from the value it describes. */
+.ss-row {
+  display: grid; grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  align-items: baseline; column-gap: 10px; row-gap: 3px;
+  padding: 7px 0; font-size: 13px; border-bottom: 1px dotted var(--line);
+}
+.ss-row:last-of-type { border-bottom: 0; }
+.ss-row.empty { background: var(--blocker-bg); margin: 0 -8px; padding: 7px 8px; }
+.ss-row > .badge { grid-column: 2; justify-self: end; }
+.ss-k { color: var(--text-2); white-space: nowrap; }
+.ss-v { font-weight: 500; text-align: right; overflow-wrap: anywhere; }
+.ss-missing {
+  font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em;
+  text-transform: uppercase; padding: 2px 7px; border-radius: 2px;
+  background: var(--blocker-bg); color: var(--blocker);
+}
+.ss-note { font-family: var(--mono); font-size: 10.5px; color: var(--text-3);
+  line-height: 1.6; margin: 9px 0 0; }
+
+.ss-stage-wrap { background: var(--panel); border: 1px solid var(--line);
+  border-radius: 4px; overflow: hidden; display: flex; flex-direction: column; }
+.ss-stage-h { display: flex; align-items: center; gap: 8px; padding: 10px 14px;
+  border-bottom: 1px solid var(--line); }
+.ss-stage-h > span { font-family: var(--mono); font-size: 10px; letter-spacing: .16em;
+  text-transform: uppercase; color: var(--text-3); margin-right: auto; }
+.ss-stage { flex: 1; min-height: 520px;
+  background: linear-gradient(180deg, var(--panel-2), var(--panel-3)); }
+.ss-stage canvas { display: block; width: 100%; height: 100%; }
+.ss-stage-none { display: grid; align-content: center; gap: 8px; padding: 40px;
+  text-align: center; color: var(--text-2); font-size: 13px; line-height: 1.7; }
+.ss-stage-none p { margin: 0; }
+.ss-stage-f { padding: 9px 14px; border-top: 1px solid var(--line);
+  font-family: var(--mono); font-size: 10px; color: var(--text-3);
+  display: flex; gap: 16px; flex-wrap: wrap; }
+
+.ss-trims { margin-top: 20px; }
+.ss-tablewrap { overflow-x: auto; }
+.ss-trims table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.ss-trims th {
+  font-family: var(--mono); font-size: 9.5px; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--text-3); text-align: left;
+  padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap;
+}
+.ss-trims td { padding: 9px 10px; border-bottom: 1px solid var(--line);
+  vertical-align: top; }
+.ss-trims tr:last-child td { border-bottom: 0; }
+
+.ss-foot { margin-top: 22px; font-family: var(--mono); font-size: 10px;
+  color: var(--text-3); line-height: 1.8; border-top: 1px solid var(--line);
+  padding-top: 12px; }
+
+@media (max-width: 1200px) {
+  .ss-grid { grid-template-columns: 1fr; }
+  .ss-stage { min-height: 420px; }
+}
