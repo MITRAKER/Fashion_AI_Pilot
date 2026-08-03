@@ -78,9 +78,37 @@ function museumImageProxy() {
   }
 }
 
+/**
+ * Is the showroom dev server actually up?
+ *
+ * The sidebar links to the runway at localhost:5174, on a second dev server.
+ * When that server is not running the link dead-ends on a browser error page
+ * that says nothing about why — which has now happened twice, once at a port
+ * that never existed at all. The browser cannot probe it itself (cross-origin),
+ * but the dev server can, so ask here and let the UI say what to run.
+ */
+function showroomStatus() {
+  return {
+    name: 'showroom-status',
+    configureServer(server: any) {
+      server.middlewares.use('/showroom-status', async (_req: any, res: any) => {
+        const ctl = AbortSignal.timeout(1200)
+        let up = false
+        try {
+          const r = await fetch('http://localhost:5174/runway.html', { signal: ctl })
+          up = r.ok
+        } catch { up = false }
+        res.setHeader('content-type', 'application/json')
+        res.setHeader('cache-control', 'no-store')
+        res.end(JSON.stringify({ up, url: 'http://localhost:5174/runway.html' }))
+      })
+    },
+  }
+}
+
 export default defineConfig({
   base: process.env.NODE_ENV === 'production' ? '/Fashion_AI_Pilot/' : '/',
-  plugins: [react(), wireframeRoute(), museumImageProxy()],
+  plugins: [react(), wireframeRoute(), museumImageProxy(), showroomStatus()],
   // `@engine` is the showroom's engine, imported directly rather than copied.
   // Copying is how the dashboard ended up with a hardcoded style sheet and a
   // duplicate dress form that drifted from the real one.

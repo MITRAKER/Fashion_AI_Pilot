@@ -6,6 +6,7 @@ import { Governance } from './components/Governance'
 import { Login } from './components/Login'
 import { IntroSplash } from './components/IntroSplash'
 import { ConceptStudio } from './components/ConceptStudio'
+import { RunwayLink } from './components/RunwayLink'
 import { summarise } from '../shared/rules.ts'
 import { Badge } from './components/ui'
 
@@ -87,16 +88,7 @@ function Shell() {
               <span className="dot" />
               Governance
             </button>
-            <a
-              href="http://localhost:5174/runway.html"
-              target="_blank"
-              rel="noreferrer"
-              className="nav-item"
-              style={{ textDecoration: 'none', color: 'inherit' }}
-            >
-              <span className="dot" style={{ background: '#f4d03a' }} />
-              Runway Game ↗
-            </a>
+            <RunwayLink />
           </div>
 
           <div style={{ marginTop: 'auto', padding: '0 8px' }}>

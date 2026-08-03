@@ -701,3 +701,19 @@ td.flag { background: var(--blocker-bg); color: #9e2126; font-weight: 500; }
   .ss-grid { grid-template-columns: 1fr; }
   .ss-stage { min-height: 420px; }
 }
+
+/* Shown when the runway's dev server is not running — a dead link that just
+   fails in the browser explains nothing. */
+.runway-help {
+  margin: 4px 8px 8px; padding: 10px 12px; border-radius: 4px;
+  background: var(--blocker-bg); border: 1px solid rgba(207, 51, 57, .25);
+  display: grid; gap: 8px; justify-items: start;
+}
+.runway-help p { margin: 0; font-size: 11.5px; line-height: 1.55; color: var(--text-2); }
+.runway-help code {
+  font-family: var(--mono); font-size: 10.5px; padding: 6px 8px; border-radius: 3px;
+  background: var(--panel); border: 1px solid var(--line-2); color: var(--text);
+  /* Wrap rather than scroll — the sidebar is 264px and a command clipped to
+     "npm --prefix showroom run de" is not a command anyone can run. */
+  width: 100%; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6;
+}
