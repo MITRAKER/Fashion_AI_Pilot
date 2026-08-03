@@ -20,6 +20,65 @@
  */
 
 const ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models'
+const POLLINATIONS = 'https://image.pollinations.ai/prompt'
+
+/**
+ * Figure-only prompt, for the composite path.
+ *
+ * Look closely at the reference boards and one of the handwritten headings
+ * reads "Dpnded ccenteisttnd" — the model could not spell it. The typography,
+ * palette labels and flats in those boards are generated too, and they are the
+ * part that breaks.
+ *
+ * So do not ask a model to draw text. Ask it for the one thing it is good at —
+ * a photograph of the garment on a figure — and render the board around it from
+ * data we already hold exactly: the palette hexes are measured, the colour names
+ * come from the vocabulary, the citations are the specialists' own. Nothing is
+ * garbled, and the swatches are the real colours rather than a model's guess at
+ * them.
+ */
+function composeFigurePrompt(b) {
+  const { sourceName, analysis, palette = [], fabric, details = [], spec } = b
+  const cols = palette.slice(0, 4).map(c => c.name.toLowerCase()).join(', ')
+  const skirt = spec?.components?.find(c => c.id === 'skirt')
+
+  return [
+    `Full-length editorial fashion photograph of a model wearing a ${
+      spec?.garmentType?.replace(/_/g, ' ') ?? 'column dress'}, standing, plain seamless studio backdrop.`,
+    `The dress is a couture interpretation of "${sourceName}".`,
+    fabric && `Fabric: ${fabric.name}, ${fabric.hand}. ${fabric.behaviour}`,
+    skirt && `Floor-skimming, about ${skirt.length}cm from the waist.`,
+    details.filter(Boolean).map(d => d.name).length
+      && `Details: ${details.filter(Boolean).map(d => d.name).join(', ')}.`,
+    cols && `Colours: ${cols}.`,
+    analysis && (analysis.edge > 0.4
+      ? `Structured and sculptural, holding its own shape.`
+      : `Soft and fluid, falling close to the body.`),
+    `Soft directional studio light, shallow depth of field, high-end fashion photography.`,
+    `No text, no lettering, no labels, no watermark, no logo, no border, no collage.`,
+  ].filter(Boolean).join(' ')
+}
+
+/** Free, keyless. Only the figure — the board is composed around it. */
+async function generateViaPollinations(body) {
+  const prompt = composeFigurePrompt(body)
+  const url = `${POLLINATIONS}/${encodeURIComponent(prompt)}`
+    + `?width=832&height=1216&nologo=true&seed=${body.seed ?? Math.floor(Math.random() * 1e6)}`
+  try {
+    const r = await fetch(url, { signal: AbortSignal.timeout(180000) })
+    if (!r.ok) {
+      return { ok: false, status: r.status, prompt, error: `Pollinations returned ${r.status}.` }
+    }
+    const buf = Buffer.from(await r.arrayBuffer())
+    return {
+      ok: true, figureOnly: true, prompt,
+      mime: r.headers.get('content-type') ?? 'image/jpeg',
+      data: buf.toString('base64'),
+    }
+  } catch (err) {
+    return { ok: false, status: 504, prompt, error: `Could not reach Pollinations: ${err?.message ?? err}` }
+  }
+}
 
 /** Reference-board vocabulary. Not a style opinion — it is the brief's format. */
 function composePrompt(b) {
@@ -77,6 +136,10 @@ function composePrompt(b) {
  *          |{ok: false, status: number, error: string, prompt?: string}}
  */
 export async function generatePlate(body, { key, model }) {
+  // Free, keyless, works today. Returns the figure only; the caller composes
+  // the board around it from data, so no text is left to a model.
+  if (body.provider === 'pollinations') return generateViaPollinations(body)
+
   if (!key) {
     return {
       ok: false, status: 503,
@@ -179,4 +242,4 @@ export function plateMiddleware({ key, model }) {
   }
 }
 
-export { composePrompt }
+export { composePrompt, composeFigurePrompt }

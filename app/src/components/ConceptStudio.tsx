@@ -7,6 +7,7 @@ import { SHOULDER, BUST, SLEEVE, recommend, type Detail } from '@engine/details.
 import { defaultSpec, describe, type Spec } from '@engine/garment-spec.js'
 import { correct, undo, EXAMPLES } from '@engine/correct.js'
 import { createBodyPreview, type BodyPreview } from '@engine/board-3d.js'
+import { Plate } from './Plate'
 
 /**
  * The object → garment engine, inside the dashboard.
@@ -60,6 +61,7 @@ export function ConceptStudio() {
   const [plateErr, setPlateErr] = useState<string | null>(null)
   const [plateBusy, setPlateBusy] = useState(false)
   const [platePrompt, setPlatePrompt] = useState<string | null>(null)
+  const [composed, setComposed] = useState(false)
 
   const [query, setQuery] = useState('')
   const [hits, setHits] = useState<{ id: number; title: string; thumb: string; full: string }[]>([])
@@ -189,7 +191,7 @@ export function ConceptStudio() {
     return { mime: 'image/jpeg', data: c.toDataURL('image/jpeg', 0.9).split(',')[1] }
   }
 
-  const makePlate = async () => {
+  const makePlate = async (provider: 'gemini' | 'pollinations') => {
     setPlateBusy(true); setPlateErr(null)
     const chosen = [
       SHOULDER.find(d => d.n === detail.shoulder),
@@ -201,6 +203,7 @@ export function ConceptStudio() {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
+          provider,
           sourceName, analysis, palette, findings,
           fabric: fabrics[fabricI],
           details: chosen,
@@ -210,8 +213,12 @@ export function ConceptStudio() {
       })
       const j = await r.json()
       setPlatePrompt(j.prompt ?? null)
-      if (j.ok) setPlate(`data:${j.mime};base64,${j.data}`)
-      else { setPlate(null); setPlateErr(j.error ?? `Failed (${r.status}).`) }
+      if (j.ok) {
+        setPlate(`data:${j.mime};base64,${j.data}`)
+        // Gemini returns the whole board; the free path returns the figure only
+        // and we compose the board around it.
+        setComposed(!!j.figureOnly)
+      } else { setPlate(null); setPlateErr(j.error ?? `Failed (${r.status}).`) }
     } catch (e: any) {
       setPlate(null); setPlateErr(String(e?.message ?? e))
     } finally { setPlateBusy(false) }
@@ -394,8 +401,11 @@ export function ConceptStudio() {
               The plate and the spec cannot drift apart, because one writes the other.
             </p>
             <div className="cs-plate-bar">
-              <button className="btn gold" onClick={() => void makePlate()} disabled={plateBusy}>
-                {plateBusy ? 'Rendering the plate…' : plate ? 'Render again' : 'Render the plate'}
+              <button className="btn gold" onClick={() => void makePlate('pollinations')} disabled={plateBusy}>
+                {plateBusy ? 'Rendering…' : 'Render the plate — free'}
+              </button>
+              <button className="btn" onClick={() => void makePlate('gemini')} disabled={plateBusy}>
+                Render with Gemini
               </button>
               {platePrompt && (
                 <button className="btn ghost sm"
@@ -403,16 +413,36 @@ export function ConceptStudio() {
                   Copy the prompt
                 </button>
               )}
-              <span className="mono muted">
-                Generated image · not a technical document · never a factory input
-              </span>
             </div>
+            <p className="cs-plate-note mono muted">
+              The free path generates only the photograph and composes the board around it
+              from this page's data — the swatch fills are the measured hexes and the
+              citations are the specialists' own, so nothing on the plate is a model's guess
+              at text. Gemini renders the whole board in one shot and needs billing enabled.
+            </p>
             {plateErr && (
               <div className="cs-no" style={{ marginTop: 12 }}>
                 <em>Plate not rendered</em><span>{plateErr}</span>
               </div>
             )}
-            {plate && (
+            {plate && composed && (
+              <Plate
+                figure={plate}
+                sourceUrl={sourceUrl}
+                sourceName={sourceName}
+                analysis={analysis}
+                palette={palette}
+                fabric={fabrics[fabricI]}
+                details={[
+                  SHOULDER.find(d => d.n === detail.shoulder),
+                  BUST.find(d => d.n === detail.bust),
+                  SLEEVE.find(d => d.n === detail.sleeve),
+                ].filter(Boolean) as Detail[]}
+                findings={findings}
+                spec={specRef.current}
+              />
+            )}
+            {plate && !composed && (
               <figure className="cs-plate">
                 <img src={plate} alt={`Concept plate for ${sourceName}`} />
                 <figcaption className="mono muted">
