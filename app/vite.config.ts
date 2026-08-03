@@ -1,9 +1,26 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { plateMiddleware } from '../shared/plate.mjs'
 
 const ENGINE = resolve(__dirname, '../showroom/src')
+// The key lives in showroom/.env (gitignored) and is read here, server-side.
+// It is never exposed to the client — no import.meta.env, no VITE_ prefix.
+const SECRETS = resolve(__dirname, '../showroom')
+
+/** Fashion-plate generation. Mounted outside /api so the 8787 proxy is untouched. */
+function plateRoute(env: Record<string, string>) {
+  return {
+    name: 'fashion-plate',
+    configureServer(server: any) {
+      server.middlewares.use('/plate', plateMiddleware({
+        key: env.GEMINI_API_KEY,
+        model: env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image',
+      }))
+    },
+  }
+}
 
 /**
  * Serves Natalie's wireframe at /wireframe from its real location in frontend/
@@ -106,9 +123,12 @@ function showroomStatus() {
   }
 }
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   base: process.env.NODE_ENV === 'production' ? '/Fashion_AI_Pilot/' : '/',
-  plugins: [react(), wireframeRoute(), museumImageProxy(), showroomStatus()],
+  plugins: [
+    react(), wireframeRoute(), museumImageProxy(), showroomStatus(),
+    plateRoute(loadEnv(mode, SECRETS, '')),
+  ],
   // `@engine` is the showroom's engine, imported directly rather than copied.
   // Copying is how the dashboard ended up with a hardcoded style sheet and a
   // duplicate dress form that drifted from the real one.
@@ -119,4 +139,4 @@ export default defineConfig({
     // The engine lives outside this Vite root; Vite must be allowed to serve it.
     fs: { allow: [resolve(__dirname, '..')] },
   },
-})
+}))

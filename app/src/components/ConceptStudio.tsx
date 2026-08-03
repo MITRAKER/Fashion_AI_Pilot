@@ -56,6 +56,11 @@ export function ConceptStudio() {
   const [specTick, setSpecTick] = useState(0)   // spec is a ref; this redraws it
   const [measured, setMeasured] = useState<{ width: number; depth: number; hemY: number } | null>(null)
 
+  const [plate, setPlate] = useState<string | null>(null)
+  const [plateErr, setPlateErr] = useState<string | null>(null)
+  const [plateBusy, setPlateBusy] = useState(false)
+  const [platePrompt, setPlatePrompt] = useState<string | null>(null)
+
   const [query, setQuery] = useState('')
   const [hits, setHits] = useState<{ id: number; title: string; thumb: string; full: string }[]>([])
   const [searching, setSearching] = useState(false)
@@ -170,6 +175,47 @@ export function ConceptStudio() {
 
   const setDetail = (kind: DetailKind, n: number) =>
     setDetailState(d => ({ ...d, [kind]: n }))
+
+  /** Re-encode the source at a bounded size so the request stays sane. */
+  const sourceAsBase64 = () => {
+    const img = imgRef.current
+    if (!img) return null
+    const max = 768
+    const s = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight))
+    const c = document.createElement('canvas')
+    c.width = Math.round(img.naturalWidth * s)
+    c.height = Math.round(img.naturalHeight * s)
+    c.getContext('2d')!.drawImage(img, 0, 0, c.width, c.height)
+    return { mime: 'image/jpeg', data: c.toDataURL('image/jpeg', 0.9).split(',')[1] }
+  }
+
+  const makePlate = async () => {
+    setPlateBusy(true); setPlateErr(null)
+    const chosen = [
+      SHOULDER.find(d => d.n === detail.shoulder),
+      BUST.find(d => d.n === detail.bust),
+      SLEEVE.find(d => d.n === detail.sleeve),
+    ].filter(Boolean)
+    try {
+      const r = await fetch('/plate', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          sourceName, analysis, palette, findings,
+          fabric: fabrics[fabricI],
+          details: chosen,
+          spec: specRef.current,
+          sourceImage: sourceAsBase64(),
+        }),
+      })
+      const j = await r.json()
+      setPlatePrompt(j.prompt ?? null)
+      if (j.ok) setPlate(`data:${j.mime};base64,${j.data}`)
+      else { setPlate(null); setPlateErr(j.error ?? `Failed (${r.status}).`) }
+    } catch (e: any) {
+      setPlate(null); setPlateErr(String(e?.message ?? e))
+    } finally { setPlateBusy(false) }
+  }
 
   const spec = specRef.current
   const ready = !!analysis
@@ -335,6 +381,45 @@ export function ConceptStudio() {
                   <li key={i}><b>{e.said}</b>{e.changes.map((c, j) => <span key={j}>{c}</span>)}</li>
                 ))}
               </ul>
+            )}
+          </div>
+
+          {/* THE PLATE */}
+          <div className="card tight">
+            <h3>Concept plate</h3>
+            <p className="sub">
+              The board, rendered. The prompt is written from the measurements and the
+              specialists' findings above — the fabric on the plate is the fabric the
+              analysis chose, and the colours are clusters of this source's own pixels.
+              The plate and the spec cannot drift apart, because one writes the other.
+            </p>
+            <div className="cs-plate-bar">
+              <button className="btn gold" onClick={() => void makePlate()} disabled={plateBusy}>
+                {plateBusy ? 'Rendering the plate…' : plate ? 'Render again' : 'Render the plate'}
+              </button>
+              {platePrompt && (
+                <button className="btn ghost sm"
+                  onClick={() => void navigator.clipboard.writeText(platePrompt)}>
+                  Copy the prompt
+                </button>
+              )}
+              <span className="mono muted">
+                Generated image · not a technical document · never a factory input
+              </span>
+            </div>
+            {plateErr && (
+              <div className="cs-no" style={{ marginTop: 12 }}>
+                <em>Plate not rendered</em><span>{plateErr}</span>
+              </div>
+            )}
+            {plate && (
+              <figure className="cs-plate">
+                <img src={plate} alt={`Concept plate for ${sourceName}`} />
+                <figcaption className="mono muted">
+                  Synthetic. Interprets “{sourceName}” — a public-domain source or your own
+                  upload. Nothing here has been validated by a technical designer.
+                </figcaption>
+              </figure>
             )}
           </div>
 
