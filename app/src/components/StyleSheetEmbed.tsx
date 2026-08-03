@@ -61,6 +61,9 @@ export function StyleSheetEmbed({ style }: { style: Style }) {
   const [view, setView] = useState<typeof VIEWS[number]['key']>('front')
   const mountRef = useRef<HTMLDivElement | null>(null)
   const previewRef = useRef<BodyPreview | null>(null)
+  const [shot, setShot] = useState<string | null>(null)
+  const [shotErr, setShotErr] = useState<string | null>(null)
+  const [shotBusy, setShotBusy] = useState(false)
 
   const by = (section: string) => style.fields.filter(f => f.section === section)
 
@@ -93,6 +96,43 @@ export function StyleSheetEmbed({ style }: { style: Style }) {
 
   const trims: TrimRow[] = style.trims
 
+  /**
+   * The rendered photograph, beside the simulated form.
+   *
+   * The prompt is built from THIS RECORD — its fabric field, its colourway, its
+   * construction rows — not from a concept analysis. So the render is of the
+   * style as specified, and a render that disagrees with the form beside it is
+   * showing you a real disagreement between the spec and how it reads.
+   */
+  const render = async () => {
+    setShotBusy(true); setShotErr(null)
+    try {
+      const r = await fetch('/plate', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          provider: 'pollinations',
+          sourceName: style.name,
+          fabric: matched ?? { name: fabricField?.value ?? 'unspecified cloth', hand: '', behaviour: '' },
+          palette: colour ? [{ name: colour.name, hex: colour.hex }] : [],
+          details: by('Construction')
+            .filter(f => f.value.trim())
+            .slice(0, 4)
+            .map(f => ({ name: f.label, construction: f.value })),
+          spec: {
+            garmentType: style.category.split('—')[0].trim().toLowerCase().replace(/\s+/g, '_'),
+            components: [],
+          },
+        }),
+      })
+      const j = await r.json()
+      if (j.ok) setShot(`data:${j.mime};base64,${j.data}`)
+      else { setShot(null); setShotErr(j.error ?? `Failed (${r.status}).`) }
+    } catch (e: any) {
+      setShot(null); setShotErr(String(e?.message ?? e))
+    } finally { setShotBusy(false) }
+  }
+
   return (
     <div className="ss">
       <header className="ss-head">
@@ -109,51 +149,71 @@ export function StyleSheetEmbed({ style }: { style: Style }) {
         </div>
       </header>
 
+        <div className="ss-stage-wrap">
+        <div className="ss-stage-h">
+          <span>Garment on form</span>
+          {VIEWS.map(v => (
+            <button key={v.key} className={`btn sm${view === v.key ? ' dark' : ''}`}
+              onClick={() => setView(v.key)}>{v.label}</button>
+          ))}
+          <button className="btn sm gold" onClick={() => void render()} disabled={shotBusy}>
+            {shotBusy ? 'Rendering…' : shot ? 'Render again' : 'Render photograph'}
+          </button>
+        </div>
+        {matched ? (
+          <div className="ss-two">
+            <div className="ss-stage" ref={mountRef} />
+            {/* The render sits beside the form, not instead of it. The form is
+                the measured drape of the cloth on record; the photograph is how
+                that spec reads. Disagreement between them is information. */}
+            <div className="ss-shot">
+              {shot
+                ? <img src={shot} alt={`${style.name} rendered`} />
+                : (
+                  <div className="ss-shot-none">
+                    {shotErr
+                      ? <><b>Not rendered.</b><span>{shotErr}</span></>
+                      : <span>Press “Render photograph” to see the style beside its form.</span>}
+                  </div>
+                )}
+            </div>
+          </div>
+        ) : (
+          <div className="ss-stage ss-stage-none">
+            <p><b>No simulated form.</b></p>
+            <p>
+              {fabricField?.value
+                ? <>“{fabricField.value}” is not in the drape catalogue, so there is no
+                    measured bend or weight to simulate.</>
+                : <>This style has no main fabric on record.</>}
+            </p>
+            <p className="ss-note">
+              The sheet shows a form only when the cloth's behaviour is known. A default
+              cloth would draw a drape this style has no basis for.
+            </p>
+          </div>
+        )}
+        <div className="ss-stage-f">
+          <span>SIDE VIEW DISCLOSES CLOSURE PLACEMENT</span>
+          {matched && (
+            <span>
+              SIMULATED AS {matched.name.toUpperCase()}
+              {matched.matchedOn === 'weave' && ' — NEAREST CATALOGUE ENTRY, NOT THIS FIBRE'}
+              {colour
+                ? ` IN ${colour.name.toUpperCase()}${colour.matchedOn === 'word' ? ' (NEAREST TERM)' : ''}`
+                : ' — COLOURWAY NOT RESOLVED, SHOWN AS TOILE'}
+              {' · NOT DIMENSIONALLY VERIFIED'}
+            </span>
+          )}
+          {shot && <span>PHOTOGRAPH IS MACHINE-GENERATED · NOT A FACTORY INPUT</span>}
+        </div>
+      </div>
+
       <div className="ss-grid">
         <div className="ss-col">
           <Section title="Fabric" fields={by('Fabric')}
             note="Name only. Swatches are not carried on the sheet — gathering them and putting a physical sample in every hand is a person's job." />
           <Section title="Cover" fields={by('Cover')} />
-        </div>
-
-        <div className="ss-stage-wrap">
-          <div className="ss-stage-h">
-            <span>Garment on form</span>
-            {VIEWS.map(v => (
-              <button key={v.key} className={`btn sm${view === v.key ? ' dark' : ''}`}
-                onClick={() => setView(v.key)}>{v.label}</button>
-            ))}
-          </div>
-          {matched ? (
-            <div className="ss-stage" ref={mountRef} />
-          ) : (
-            <div className="ss-stage ss-stage-none">
-              <p><b>No simulated form.</b></p>
-              <p>
-                {fabricField?.value
-                  ? <>“{fabricField.value}” is not in the drape catalogue, so there is no
-                      measured bend or weight to simulate.</>
-                  : <>This style has no main fabric on record.</>}
-              </p>
-              <p className="ss-note">
-                The sheet shows a form only when the cloth's behaviour is known. A default
-                cloth would draw a drape this style has no basis for.
-              </p>
-            </div>
-          )}
-          <div className="ss-stage-f">
-            <span>SIDE VIEW DISCLOSES CLOSURE PLACEMENT</span>
-            {matched && (
-              <span>
-                SIMULATED AS {matched.name.toUpperCase()}
-                {matched.matchedOn === 'weave' && ' — NEAREST CATALOGUE ENTRY, NOT THIS FIBRE'}
-                {colour
-                  ? ` IN ${colour.name.toUpperCase()}${colour.matchedOn === 'word' ? ' (NEAREST TERM)' : ''}`
-                  : ' — COLOURWAY NOT RESOLVED, SHOWN AS TOILE'}
-                {' · NOT DIMENSIONALLY VERIFIED'}
-              </span>
-            )}
-          </div>
         </div>
 
         <div className="ss-col">
