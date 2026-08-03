@@ -56,31 +56,22 @@ const VIEW_CLAUSE = {
 }
 
 /**
- * No face — by changing the subject, not by asking for its absence.
+ * A real model, on a real body — the head is removed afterwards, not here.
  *
- * Two earlier attempts, both tested and both failed:
+ * A dress form was tried and dropped. It reliably produced no face, but a form
+ * is not a body: it has no hips, no stride, no weight shifted onto one leg, and
+ * a garment's drape is largely a response to those. It also pulled the whole
+ * frame toward hangers and stock rails. The simulated pane already shows the
+ * garment on a form; asking the photograph for the same thing wasted it.
  *
- *   "no face, no head, no hair"  -> bald heads, faces intact. SANA has no
- *                                   negative-prompt parameter; a negation in
- *                                   the prompt is read as content, so naming
- *                                   the head is what put a head in the frame.
- *   "framed from the collarbone
- *    down, a body crop"          -> ignored outright, full portrait returned.
- *                                   Composition instructions do not hold either.
- *
- * What works is giving it a subject that has no face to begin with. A dress
- * form is a real object the model knows, positively described, and it happens
- * to be exactly what the simulated pane beside it shows — so the two panes now
- * depict the same kind of thing, which makes them easier to compare, not
- * harder.
- *
- * The reason this matters beyond taste: the faces were the weakest thing in
- * every render, they pulled the eye off the cloth, and an invented human
- * likeness on a garment plate is a liability nobody asked for.
+ * Every prompt-side attempt at facelessness failed under measurement (see
+ * app/src/crop.ts for the four of them). So the prompt now asks for what image
+ * models are actually good at — a person wearing cloth — and the head is cropped
+ * off the returned image, which is deterministic and needs no cooperation.
  */
 const SUBJECT =
-  'displayed on a headless dressmaker dress form, a matte linen tailor mannequin torso '
-  + 'on a slim wooden stand'
+  'worn by a professional fashion model standing in a relaxed contrapposto, '
+  + 'weight on one leg'
 
 function composeFigurePrompt(b) {
   const { sourceName, analysis, palette = [], fabric, details = [], spec, view = 'front' } = b
@@ -110,11 +101,11 @@ function composeFigurePrompt(b) {
     analysis && (analysis.edge > 0.4
       ? `Structured and sculptural, holding its own shape.`
       : `Soft and fluid, falling close to the body.`),
-    // Deliberately product-catalogue language, not "fashion photography" or
-    // "shallow depth of field" — both are portrait cues and pull a person back
-    // into the frame however the subject is described.
-    `Soft even studio light, e-commerce product catalogue photography, sharp throughout.`,
-    `The garment fills the frame.`,
+    // Catalogue-mannequin language was here while the subject was a dress form,
+    // to keep a person out of the frame. The subject is a real model again, so
+    // this is back to editorial — it is what gives cloth on a body its quality.
+    `Soft directional studio light, editorial fashion photography, sharp on the cloth.`,
+    `Full length, the entire garment from shoulder to hem inside the frame.`,
     `No text, no lettering, no labels, no watermark, no logo, no border, no collage.`,
   ].filter(Boolean).join(' ')
 }
