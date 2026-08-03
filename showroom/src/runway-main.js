@@ -4,24 +4,22 @@ import { buildPipeline } from './post/pipeline.js'
 import { createRunwayWorld } from './runway/world.js'
 import { createAvatar } from './runway/avatar.js'
 import { createModelAvatar } from './runway/model-avatar.js'
-import { createGameEngine } from './game/engine.js'
 import { createWardrobe } from './runway/wardrobe.js'
 import { createHotspots } from './runway/hotspots.js'
 
 /**
- * Fashion runway — the playable scene.
+ * Fashion runway — a presentation view of a look.
  *
- * The world, avatar and scoring engine already existed as modules that nothing
- * imported. This wires them together: a chase camera down the catwalk, a 120 BPM
- * beat clock, and pose input judged against it.
+ * This was a rhythm game: a 120 BPM beat clock, pose input judged against it,
+ * PERFECT/GREAT/GOOD ratings and a combo multiplier. All of that is gone. A
+ * score turns looking at a garment into losing at a game, and this is a
+ * collection tool.
  *
- * Loop: the model walks the catwalk, you strike a pose at the pit on the beat.
- * Accuracy against the nearest beat decides PERFECT / GREAT / GOOD, and combo
- * multiplies the score.
+ * What it is now: the model walks the catwalk under show lighting, space or a
+ * click holds her so a look can be read, and clicking a garment part opens that
+ * part's spec with the same approval state the tech pack carries.
  */
 
-const BPM = 120
-const BEAT = 60 / BPM            // 0.5s
 const POSES = ['A', 'B', 'C']
 
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' })
@@ -55,7 +53,6 @@ const avatar = useProcedural
   : await createModelAvatar(env.envMap)
 scene.add(avatar.group)
 
-const engine = createGameEngine()
 
 // OWNED BY: cinematography agent.
 // The lighting rig in world.js is still moving under this file, so every grade
@@ -96,14 +93,17 @@ addEventListener('resize', () => {
 
 // Debug handle. Lets the capture harness measure the scene instead of eyeballing
 // a screenshot — "is she floating?" is a bounding-box question, not an opinion.
-window.__RUNWAY__ = { scene, camera, avatar, world, engine, THREE }
+window.__RUNWAY__ = { scene, camera, avatar, world, THREE }
 
 // Wardrobe: pick a look, the model wears it. Selecting an item names the style
 // on the HUD, so the frame always says which style record is on the runway.
 const lookLabel = document.getElementById('looklabel')
+const lookName = document.getElementById('lookname')
 const wardrobe = createWardrobe(avatar, {
   onChange: (_cat, item) => {
     if (lookLabel) lookLabel.textContent = item.sub
+    // The corner that used to count a score now names the garment on the deck.
+    if (lookName) lookName.textContent = item.name ?? item.sub
   },
 })
 window.__RUNWAY__.wardrobe = wardrobe
@@ -115,10 +115,6 @@ window.__RUNWAY__.hotspots = hotspots
 
 /* --------------------------------------------------------------------- HUD */
 const hud = {
-  score: document.getElementById('score'),
-  combo: document.getElementById('combo'),
-  rating: document.getElementById('rating'),
-  beat: document.getElementById('beat'),
   hint: document.getElementById('hint'),
 }
 
@@ -130,25 +126,36 @@ let poseIndex = 0
 function start() {
   if (started) return
   started = true
-  engine.initAudio()
   avatar.setWalking(true)
   hud.hint.classList.add('gone')
 }
 
-function pose() {
+/**
+ * Hold the walk so a garment can be read.
+ *
+ * This was a rhythm game: pose on the 120 BPM beat, judged PERFECT/GREAT/GOOD,
+ * combo multiplying a score. Scoring is gone — this is a presentation view of a
+ * collection, and a score turns looking at a garment into losing at a game.
+ * What is left is the useful half: stop the model, turn her, read the details.
+ */
+function togglePause() {
   if (!started) { start(); return }
-  // Distance in ms to the nearest beat — the whole judgement.
-  const phase = clockTime % BEAT
-  const offBy = Math.min(phase, BEAT - phase) * 1000
-  engine.triggerPoseTiming(offBy)
-  avatar.strikePose(POSES[poseIndex++ % POSES.length])
+  paused = !paused
+  avatar.setWalking(!paused)
+  if (paused) avatar.strikePose(POSES[poseIndex++ % POSES.length])
 }
+let paused = false
 
 addEventListener('keydown', e => {
-  if (e.code === 'Space') { e.preventDefault(); pose() }
+  if (e.code === 'Space') { e.preventDefault(); togglePause() }
   if (e.code === 'Enter') start()
 })
-addEventListener('pointerdown', pose)
+// Pointer events must not fight the hotspots — clicking a garment part opens its
+// spec card, and that click should not also halt the walk.
+addEventListener('pointerdown', e => {
+  if (e.target.closest?.('.hs-card, .hs-toggle, .hs-marker')) return
+  togglePause()
+})
 
 // The title card is a full-screen 72%-black scrim, so a headless capture would
 // otherwise grade a dimmed frame rather than the actual stage. Same intent as the
@@ -278,23 +285,8 @@ function tick() {
 
   avatar.update(dt)
   world.update(dt, avatar.z)
-  engine.update(dt)
 
   updateCamera(dt, avatar.z, clockTime)
-
-  // HUD
-  if (hud.score) hud.score.textContent = String(engine.score).padStart(6, '0')
-  if (hud.combo) hud.combo.textContent = engine.combo > 1 ? `×${engine.combo}` : ''
-  if (hud.rating) {
-    hud.rating.textContent = engine.ratingTime > 0 ? engine.rating : ''
-    hud.rating.style.opacity = engine.ratingTime > 0 ? '1' : '0'
-  }
-  if (hud.beat) {
-    // Pulses on the beat so the player can see the rhythm they are playing to.
-    const phase = (clockTime % BEAT) / BEAT
-    hud.beat.style.transform = `scale(${1 + (1 - phase) * 0.5})`
-    hud.beat.style.opacity = String(0.35 + (1 - phase) * 0.65)
-  }
 
   hotspots.update()
   composer.render(dt)
@@ -309,7 +301,7 @@ window.__SHOWROOM_POSE__ = async name => {
   if (name === 'pit') { avatar.setWalking(true); avatar.group.position.z = -0.2; avatar.strikePose('A') }
   if (name === 'pose') { avatar.strikePose('B') }
   for (let i = 0; i < 40; i++) {           // let the sim and camera settle
-    avatar.update(1 / 60); world.update(1 / 60, avatar.z); engine.update(1 / 60)
+    avatar.update(1 / 60); world.update(1 / 60, avatar.z)
     cutPending = true                      // snap, never ease, when posing a still
     updateCamera(1 / 60, avatar.z, clockTime)
   }
