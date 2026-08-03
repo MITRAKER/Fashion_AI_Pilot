@@ -862,3 +862,8 @@ td.flag { background: var(--blocker-bg); color: #9e2126; font-weight: 500; }
   font-size: 12px; color: var(--text-3); line-height: 1.6; }
 .ss-shot-none b { color: var(--blocker); }
 @media (max-width: 1200px) { .ss-two { grid-template-columns: 1fr; } }
+
+/* A dot on a view button means that angle has a photograph rendered. */
+.ss-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--gold);
+  display: inline-block; margin-left: 6px; vertical-align: middle; }
+.ss-stage-h .btn.dark .ss-dot { background: var(--gold-hi); }

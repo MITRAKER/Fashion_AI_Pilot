@@ -37,14 +37,33 @@ const POLLINATIONS = 'https://image.pollinations.ai/prompt'
  * garbled, and the swatches are the real colours rather than a model's guess at
  * them.
  */
+/**
+ * Camera clause per view.
+ *
+ * A caution that belongs on screen, not just here: this does NOT turn one dress
+ * around. Each view is a separate generation, so the back is a fresh
+ * interpretation of the same brief rather than the reverse of the front. The
+ * 3D form beside it is the opposite — one mesh, actually rotated — which is
+ * exactly why the two panes are worth having side by side.
+ *
+ * Holding the seed constant across the three keeps the model, lighting and
+ * cloth as close as the model can manage. It is not a guarantee.
+ */
+const VIEW_CLAUSE = {
+  front: 'Photographed straight on from the front, the model facing the camera.',
+  side: 'Photographed from the side, a full profile, the model facing left. Show the side seam and how the garment sits over the hip.',
+  back: 'Photographed from directly behind, a back view, the model facing away from the camera. Show the centre back and the closure.',
+}
+
 function composeFigurePrompt(b) {
-  const { sourceName, analysis, palette = [], fabric, details = [], spec } = b
+  const { sourceName, analysis, palette = [], fabric, details = [], spec, view = 'front' } = b
   const cols = palette.slice(0, 4).map(c => c.name.toLowerCase()).join(', ')
   const skirt = spec?.components?.find(c => c.id === 'skirt')
 
   return [
     `Full-length editorial fashion photograph of a model wearing a ${
       spec?.garmentType?.replace(/_/g, ' ') ?? 'column dress'}, standing, plain seamless studio backdrop.`,
+    VIEW_CLAUSE[view] ?? VIEW_CLAUSE.front,
     `The dress is a couture interpretation of "${sourceName}".`,
     fabric && `Fabric: ${fabric.name}, ${fabric.hand}. ${fabric.behaviour}`,
     skirt && `Floor-skimming, about ${skirt.length}cm from the waist.`,
@@ -58,6 +77,8 @@ function composeFigurePrompt(b) {
     `No text, no lettering, no labels, no watermark, no logo, no border, no collage.`,
   ].filter(Boolean).join(' ')
 }
+
+export { VIEW_CLAUSE }
 
 /** Free, keyless. Only the figure — the board is composed around it. */
 async function generateViaPollinations(body) {

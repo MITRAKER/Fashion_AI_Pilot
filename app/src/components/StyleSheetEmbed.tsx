@@ -61,9 +61,14 @@ export function StyleSheetEmbed({ style }: { style: Style }) {
   const [view, setView] = useState<typeof VIEWS[number]['key']>('front')
   const mountRef = useRef<HTMLDivElement | null>(null)
   const previewRef = useRef<BodyPreview | null>(null)
-  const [shot, setShot] = useState<string | null>(null)
+  // One photograph per view, so Front/Side/Back drives both panes.
+  const [shots, setShots] = useState<Record<string, string>>({})
   const [shotErr, setShotErr] = useState<string | null>(null)
-  const [shotBusy, setShotBusy] = useState(false)
+  const [shotBusy, setShotBusy] = useState<string | null>(null)
+  // Held constant across the three so the model, lighting and cloth stay as
+  // close as the generator can manage between separate renders.
+  const seedRef = useRef(Math.floor(Math.random() * 1e6))
+  const shot = shots[view] ?? null
 
   const by = (section: string) => style.fields.filter(f => f.section === section)
 
@@ -104,14 +109,16 @@ export function StyleSheetEmbed({ style }: { style: Style }) {
    * style as specified, and a render that disagrees with the form beside it is
    * showing you a real disagreement between the spec and how it reads.
    */
-  const render = async () => {
-    setShotBusy(true); setShotErr(null)
+  const render = async (which: typeof VIEWS[number]['key']) => {
+    setShotBusy(which); setShotErr(null)
     try {
       const r = await fetch('/plate', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           provider: 'pollinations',
+          view: which,
+          seed: seedRef.current,
           sourceName: style.name,
           fabric: matched ?? { name: fabricField?.value ?? 'unspecified cloth', hand: '', behaviour: '' },
           palette: colour ? [{ name: colour.name, hex: colour.hex }] : [],
@@ -126,11 +133,16 @@ export function StyleSheetEmbed({ style }: { style: Style }) {
         }),
       })
       const j = await r.json()
-      if (j.ok) setShot(`data:${j.mime};base64,${j.data}`)
-      else { setShot(null); setShotErr(j.error ?? `Failed (${r.status}).`) }
+      if (j.ok) setShots(s => ({ ...s, [which]: `data:${j.mime};base64,${j.data}` }))
+      else setShotErr(j.error ?? `Failed (${r.status}).`)
     } catch (e: any) {
-      setShot(null); setShotErr(String(e?.message ?? e))
-    } finally { setShotBusy(false) }
+      setShotErr(String(e?.message ?? e))
+    } finally { setShotBusy(null) }
+  }
+
+  /** All three angles, in sequence — the free generator is one at a time. */
+  const renderAll = async () => {
+    for (const v of VIEWS) await render(v.key)
   }
 
   return (
@@ -154,10 +166,17 @@ export function StyleSheetEmbed({ style }: { style: Style }) {
           <span>Garment on form</span>
           {VIEWS.map(v => (
             <button key={v.key} className={`btn sm${view === v.key ? ' dark' : ''}`}
-              onClick={() => setView(v.key)}>{v.label}</button>
+              onClick={() => setView(v.key)}>
+              {v.label}
+              {/* A dot means that angle has a photograph; the form always has all three. */}
+              {shots[v.key] && <i className="ss-dot" />}
+            </button>
           ))}
-          <button className="btn sm gold" onClick={() => void render()} disabled={shotBusy}>
-            {shotBusy ? 'Rendering…' : shot ? 'Render again' : 'Render photograph'}
+          <button className="btn sm gold" onClick={() => void render(view)} disabled={!!shotBusy}>
+            {shotBusy === view ? 'Rendering…' : shot ? `Redo ${view}` : `Render ${view}`}
+          </button>
+          <button className="btn sm" onClick={() => void renderAll()} disabled={!!shotBusy}>
+            {shotBusy ? `Rendering ${shotBusy}…` : 'All three angles'}
           </button>
         </div>
         {matched ? (
@@ -171,9 +190,11 @@ export function StyleSheetEmbed({ style }: { style: Style }) {
                 ? <img src={shot} alt={`${style.name} rendered`} />
                 : (
                   <div className="ss-shot-none">
-                    {shotErr
-                      ? <><b>Not rendered.</b><span>{shotErr}</span></>
-                      : <span>Press “Render photograph” to see the style beside its form.</span>}
+                    {shotBusy === view
+                      ? <span className="cs-spin">Rendering the {view} view…</span>
+                      : shotErr
+                        ? <><b>Not rendered.</b><span>{shotErr}</span></>
+                        : <span>No photograph for the {view} view yet.</span>}
                   </div>
                 )}
             </div>
@@ -205,7 +226,12 @@ export function StyleSheetEmbed({ style }: { style: Style }) {
               {' · NOT DIMENSIONALLY VERIFIED'}
             </span>
           )}
-          {shot && <span>PHOTOGRAPH IS MACHINE-GENERATED · NOT A FACTORY INPUT</span>}
+          {shot && (
+            <span>
+              PHOTOGRAPH IS MACHINE-GENERATED · NOT A FACTORY INPUT · EACH ANGLE IS A
+              SEPARATE GENERATION, NOT ONE GARMENT TURNED — THE FORM BESIDE IT IS
+            </span>
+          )}
         </div>
       </div>
 
