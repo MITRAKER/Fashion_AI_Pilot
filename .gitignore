@@ -30,3 +30,4 @@ Thumbs.db
 showroom/node_modules/
 showroom/renders/
 showroom/dist/
+showroom/.npm-cache/

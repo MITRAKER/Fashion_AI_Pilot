@@ -7,7 +7,7 @@ import {
 import { stubProvider, type DraftProvider } from './ai/provider.ts'
 import { runPreflight, summarise } from '../shared/rules.ts'
 import { CATEGORY_TEMPLATES } from '../shared/categories.ts'
-import type { CategoryTemplate, GateKey, Role, Style, User } from '../shared/types.ts'
+import type { CategoryTemplate, GateKey, ParsedSketch, Role, Style, User } from '../shared/types.ts'
 
 const COLLECTION_ID = 'SS27-CORE'
 
@@ -102,7 +102,96 @@ type Handler = (ctx: {
   db: DB; user: User | null; body: any; params: string[]; setCookie: (v: string) => void
 }) => unknown | Promise<unknown>
 
+function parseSketchDraft(styleId: string, sourceAsset: string): ParsedSketch {
+  const asset = sourceAsset.trim()
+  const base: ParsedSketch = {
+    field_status: 'DRAFT',
+    styleId,
+    sourceAsset: asset,
+    garment_category: 'Dress',
+    silhouette: 'Draped asymmetric, fitted through waist, flowing skirt',
+    key_design_features: {
+      neckline: 'High draped/cowl neckline',
+      sleeves: 'Voluminous gathered sleeves',
+      seams_darts: 'Fitted shaping seams implied; drape lines dominate',
+      pockets: 'Not visible',
+      closures: 'Not clearly visible',
+      hem: 'Asymmetric soft/fluid hem',
+    },
+    views_present: ['front'],
+    views_missing: ['back'],
+    symmetry: 'Asymmetric',
+    rough_proportions: {
+      shoulder: 'medium to broad visual width',
+      waist: 'defined/fitted',
+      skirt_volume: 'moderate to high flare',
+      length: 'midi to ankle impression',
+    },
+  }
+
+  if (/flat_sketch_garment_b\.(png|jpe?g)$/i.test(asset)) {
+    return {
+      ...base,
+      silhouette: 'Back draped bodice with flared flowing skirt',
+      key_design_features: {
+        neckline: 'Soft rolled back neckline',
+        sleeves: 'Loose draped sleeves (cape-like fall)',
+        seams_darts: 'Back shaping implied, diagonal drape across back',
+        pockets: 'Not visible',
+        closures: 'Not visible',
+        hem: 'Flowing flare with soft side drape',
+      },
+      views_present: ['back'],
+      views_missing: ['front'],
+      rough_proportions: {
+        shoulder: 'balanced back width',
+        waist: 'mild suppression',
+        skirt_volume: 'high flare',
+        length: 'lower-calf to ankle impression',
+      },
+    }
+  }
+
+  if (/flat_sketch_garment_c\.(png|jpe?g)$/i.test(asset)) {
+    return {
+      ...base,
+      silhouette: 'Fitted sleeveless bodice with belted waist and flared skirt',
+      key_design_features: {
+        neckline: 'Clean back neck opening',
+        sleeves: 'Sleeveless',
+        seams_darts: 'Vertical back shaping seams implied',
+        pockets: 'Not visible',
+        closures: 'Not clearly visible',
+        hem: 'Soft flare with asymmetric side extension',
+      },
+      views_present: ['back'],
+      views_missing: ['front'],
+      symmetry: 'Mostly symmetric with asymmetric side detail',
+      rough_proportions: {
+        shoulder: 'narrow to medium',
+        waist: 'strong waist emphasis',
+        skirt_volume: 'moderate flare',
+        length: 'midi to ankle impression',
+      },
+    }
+  }
+
+  return base
+}
+
 const ROUTES: [string, RegExp, Handler][] = [
+
+  ['POST', /^\/api\/sketch\/parse$/, ({ db, body }) => {
+    const styleId = String(body?.styleId ?? '').trim()
+    const sourceAsset = String(body?.sourceAsset ?? '').trim()
+    if (!styleId) throw new HttpError(400, 'styleId is required')
+    if (!sourceAsset) throw new HttpError(400, 'sourceAsset is required')
+    mustStyle(db, styleId)
+    const parsed = parseSketchDraft(styleId, sourceAsset)
+    db.prepare('UPDATE styles SET parsed_sketch = ? WHERE id = ?')
+      .run(JSON.stringify(parsed), styleId)
+    return parsed
+  }],
 
   ['POST', /^\/api\/login$/, ({ db, body, setCookie }) => {
     const u = db.prepare('SELECT * FROM users WHERE username = ?')

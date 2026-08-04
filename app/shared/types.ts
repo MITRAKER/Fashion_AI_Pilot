@@ -89,6 +89,11 @@ export interface Asset {
   synthetic: boolean
 }
 
+export interface StyleAssets {
+  items: Asset[]
+  flatSketch?: string
+}
+
 export interface FactoryMessage {
   id: string
   author: string
@@ -98,6 +103,31 @@ export interface FactoryMessage {
   fieldRef?: string
   state: 'Open' | 'Answered' | 'Accepted' | 'Requires Revision' | 'Resolved'
   proposedRule?: string
+}
+
+export type ParsedSketch = {
+  field_status: 'DRAFT' | 'APPROVED'
+  styleId: string
+  sourceAsset: string
+  garment_category: string
+  silhouette: string
+  key_design_features: {
+    neckline: string
+    sleeves: string
+    seams_darts: string
+    pockets: string
+    closures: string
+    hem: string
+  }
+  views_present: string[]
+  views_missing: string[]
+  symmetry: string
+  rough_proportions: {
+    shoulder: string
+    waist: string
+    skirt_volume: string
+    length: string
+  }
 }
 
 // --- Category templates (D-01) --------------------------------------------
@@ -156,7 +186,7 @@ export interface Style {
   sizeRange: string[]
   owner: string
   colorways: string[]
-  assets: Asset[]
+  assets: StyleAssets
   fields: PackField[]
   poms: PomRow[]
   bom: BomRow[]
@@ -164,6 +194,7 @@ export interface Style {
   gates: Gate[]
   thread: FactoryMessage[]
   exports: ExportRecord[]
+  parsedSketch?: ParsedSketch
 }
 
 export interface ExportRecord {

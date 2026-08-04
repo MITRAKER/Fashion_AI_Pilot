@@ -135,8 +135,8 @@ function StyleCard({ style, findings, onOpen }: {
   style: Style; findings: ValidationFinding[]; onOpen: (id: string) => void
 }) {
   const { blockers, warnings } = summarise(findings)
-  const hero = style.assets.find(a => a.mode === 'flat')
-    ?? style.assets.find(a => a.mode === 'presentation') ?? style.assets[0]
+  const hero = style.assets.items.find(a => a.mode === 'flat')
+    ?? style.assets.items.find(a => a.mode === 'presentation') ?? style.assets.items[0]
 
   return (
     <button className="style-card" onClick={() => onOpen(style.id)}>

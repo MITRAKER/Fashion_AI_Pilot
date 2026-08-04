@@ -1,5 +1,7 @@
 import { DatabaseSync } from 'node:sqlite'
 import { randomUUID, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
+import { mkdirSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
 import type {
   Asset, AuditEvent, BomRow, Collection, ExportRecord, FactoryCorrection, FactoryMessage,
   Gate, ModelInvocation, PackField, PomRow, Role, Stage, Style, TrimRow, User,
@@ -28,7 +30,8 @@ CREATE TABLE IF NOT EXISTS stages (
 CREATE TABLE IF NOT EXISTS styles (
   id TEXT PRIMARY KEY, collection_id TEXT NOT NULL REFERENCES collections(id),
   name TEXT, category TEXT, category_key TEXT, status TEXT, version INTEGER,
-  base_size TEXT, units TEXT, size_range TEXT, owner TEXT, colorways TEXT);
+  base_size TEXT, units TEXT, size_range TEXT, owner TEXT, colorways TEXT,
+  parsed_sketch TEXT, flat_sketch_url TEXT);
 
 CREATE TABLE IF NOT EXISTS style_fields (
   id TEXT NOT NULL, style_id TEXT NOT NULL REFERENCES styles(id),
@@ -93,8 +96,21 @@ CREATE TABLE IF NOT EXISTS model_invocations (
 export type DB = DatabaseSync
 
 export function openDb(file: string): DB {
-  const db = new DatabaseSync(file)
+  const resolved = resolve(file)
+  mkdirSync(dirname(resolved), { recursive: true })
+  const db = new DatabaseSync(resolved)
   db.exec(SCHEMA)
+  // Migration for existing local DB files created before parsed_sketch existed.
+  try {
+    db.exec('ALTER TABLE styles ADD COLUMN parsed_sketch TEXT')
+  } catch {
+    // Column already exists.
+  }
+  try {
+    db.exec('ALTER TABLE styles ADD COLUMN flat_sketch_url TEXT')
+  } catch {
+    // Column already exists.
+  }
   return db
 }
 
@@ -158,11 +174,20 @@ export function readStyle(db: DB, id: string): Style | null {
   const s = db.prepare('SELECT * FROM styles WHERE id = ?').get(id) as any
   if (!s) return null
   const q = (sql: string) => db.prepare(sql).all(id) as any[]
+  const assets = q('SELECT * FROM assets WHERE style_id = ?').map(r => ({
+    id: r.id, mode: r.mode, title: r.title, caption: r.caption,
+    palette: JSON.parse(r.palette), synthetic: !!r.synthetic,
+  })) as Asset[]
 
   return {
     id: s.id, name: s.name, category: s.category, categoryKey: s.category_key,
     status: s.status, version: s.version, baseSize: s.base_size, units: s.units,
     sizeRange: JSON.parse(s.size_range), owner: s.owner, colorways: JSON.parse(s.colorways),
+    parsedSketch: s.parsed_sketch ? JSON.parse(s.parsed_sketch) : undefined,
+    assets: {
+      items: assets,
+      flatSketch: s.flat_sketch_url ?? undefined,
+    },
     fields: q('SELECT * FROM style_fields WHERE style_id = ? ORDER BY ord').map(r => ({
       id: r.id, section: r.section, label: r.label, value: r.value,
       unit: r.unit ?? undefined, ...prov(r),
@@ -178,10 +203,6 @@ export function readStyle(db: DB, id: string): Style | null {
     trims: q('SELECT * FROM trims WHERE style_id = ?').map(r => ({
       id: r.id, item: r.item, spec: r.spec, placement: r.placement, qty: r.qty, ...prov(r),
     })) as TrimRow[],
-    assets: q('SELECT * FROM assets WHERE style_id = ?').map(r => ({
-      id: r.id, mode: r.mode, title: r.title, caption: r.caption,
-      palette: JSON.parse(r.palette), synthetic: !!r.synthetic,
-    })) as Asset[],
     // Lifecycle order, not row order — the UI reads this top to bottom as the
     // sequence of gates, so it must never depend on insertion order.
     gates: q(`SELECT * FROM gates WHERE style_id = ? ORDER BY CASE key

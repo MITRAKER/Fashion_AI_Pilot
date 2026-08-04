@@ -67,6 +67,26 @@ const login = async (username: string, password = 'pilot') => {
 /* ---------------------------------------------------------------------- auth */
 
 describe('authentication', () => {
+  test('parses a sketch into a DRAFT structured response', async () => {
+    const r = await call('POST', '/api/sketch/parse', {
+      body: {
+        styleId: 'ST-27-011',
+        sourceAsset: 'showroom/assets/flat_sketch_garment_A.png',
+      },
+    })
+
+    assert.equal(r.status, 200)
+    assert.equal(r.body.field_status, 'DRAFT')
+    assert.equal(r.body.styleId, 'ST-27-011')
+    assert.equal(r.body.sourceAsset, 'showroom/assets/flat_sketch_garment_A.png')
+    assert.equal(typeof r.body.garment_category, 'string')
+    assert.equal(typeof r.body.silhouette, 'string')
+    assert.ok(Array.isArray(r.body.views_present))
+    assert.ok(Array.isArray(r.body.views_missing))
+    assert.equal(typeof r.body.key_design_features, 'object')
+    assert.equal(typeof r.body.rough_proportions, 'object')
+  })
+
   test('rejects a wrong password', async () => {
     const r = await call('POST', '/api/login', {
       body: { username: 'natalie', password: 'wrong' },

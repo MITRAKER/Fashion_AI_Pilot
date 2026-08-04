@@ -31,4 +31,13 @@ export default defineConfig({
     port: 5173,
     proxy: { '/api': { target: 'http://localhost:8787', changeOrigin: true } },
   },
+  // garment-engine is a local file: dependency that builds to CommonJS. Vite's
+  // dev server doesn't pre-bundle/convert linked local packages by default, so
+  // without this its raw `exports.X = require(...)` code gets served straight
+  // to the browser (which has no `exports`/`require` globals) and throws
+  // "exports is not defined". Forcing it through optimizeDeps' esbuild
+  // pre-bundling converts it to ESM like any other CJS dependency.
+  optimizeDeps: {
+    include: ['garment-engine'],
+  },
 })

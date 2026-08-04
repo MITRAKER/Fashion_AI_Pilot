@@ -1,10 +1,12 @@
 import { createServer } from 'node:http'
+import { fileURLToPath } from 'node:url'
 import { openDb } from './db.ts'
 import { seedIfEmpty } from './seed.ts'
 import { handleApi } from './api.ts'
 
-const PORT = Number(process.env.PORT ?? 8787)
-const FILE = process.env.DB_FILE ?? new URL('../atelier.db', import.meta.url).pathname.slice(1)
+const PORT = Number(process.env.PORT ?? 3000)
+const HOST = process.env.HOST ?? '127.0.0.1'
+const FILE = process.env.DB_FILE ?? fileURLToPath(new URL('../atelier.db', import.meta.url))
 
 const db = openDb(FILE)
 const seeded = seedIfEmpty(db)
@@ -17,7 +19,7 @@ const server = createServer((req, res) => {
   handleApi(req, res, db)
 })
 
-server.listen(PORT, () => {
+server.listen(PORT, HOST, () => {
   console.log(`atelier api  http://localhost:${PORT}`)
   console.log(`database     ${FILE}${seeded ? '  (seeded)' : ''}`)
 })

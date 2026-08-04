@@ -48,7 +48,7 @@ export function StyleRecord({ styleId, onBack }: { styleId: string; onBack: () =
       <div className="tabs">
         {([
           ['stylesheet', '3D Style sheet', 'LIVE'],
-          ['creative', 'Creative modes', style.assets.length],
+          ['creative', 'Creative modes', style.assets.items.length],
           ['pack', 'Tech pack', style.fields.length + style.poms.length],
           ['preflight', 'Preflight', blockers || warnings],
           ['approvals', 'Approvals', style.gates.filter(g => g.approved).length + '/4'],
@@ -66,7 +66,7 @@ export function StyleRecord({ styleId, onBack }: { styleId: string; onBack: () =
 
       {tab === 'stylesheet' && (
         <>
-          <StyleSheetEmbed styleId={style.id} />
+          <StyleSheetEmbed style={style} />
           <MuseumSearch />
         </>
       )}
@@ -102,7 +102,7 @@ const MODE_META: Record<SketchMode, { title: string; note: string; cls: string }
 
 function Creative({ style }: { style: Style }) {
   const [mode, setMode] = useState<SketchMode>('mood')
-  const assets = style.assets.filter(a => a.mode === mode)
+  const assets = style.assets.items.filter(a => a.mode === mode)
   const meta = MODE_META[mode]
 
   return (

@@ -1,8 +1,18 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { StyleSheet3DCanvas } from './StyleSheet3DCanvas'
+import type { Style } from '../../shared/types.ts'
 
-export function StyleSheetEmbed({ styleId = 'ST-27-011' }: { styleId?: string }) {
+export function StyleSheetEmbed({ style }: { style: Style }) {
+  const styleId = style.id
+  const parsed = style.parsedSketch
+  const flatSketch = style.assets.flatSketch
+  const presentation3D = Boolean(flatSketch)
   const [viewMode, setViewMode] = useState<'front' | 'side' | 'back'>('front')
+  const [flatSketchError, setFlatSketchError] = useState(false)
+
+  useEffect(() => {
+    setFlatSketchError(false)
+  }, [styleId, flatSketch])
 
   return (
     <div style={{
@@ -108,8 +118,17 @@ export function StyleSheetEmbed({ styleId = 'ST-27-011' }: { styleId?: string })
               fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: '.16em',
               textTransform: 'uppercase', color: '#4A4844', marginRight: 'auto'
             }}>
-              Garment on form
+              {presentation3D ? 'Presentation 3D' : 'Garment on form'}
             </span>
+            {presentation3D && (
+              <span style={{
+                fontFamily: "'IBM Plex Mono', monospace", fontSize: 9.5, letterSpacing: '.14em',
+                textTransform: 'uppercase', color: '#8A5B2A', background: '#F6EBDD', border: '1px solid #E8D4B6',
+                borderRadius: 999, padding: '4px 8px',
+              }}>
+                Draft
+              </span>
+            )}
             {(['front', 'side', 'back'] as const).map(m => (
               <button
                 key={m}
@@ -129,7 +148,7 @@ export function StyleSheetEmbed({ styleId = 'ST-27-011' }: { styleId?: string })
           </div>
 
           <div style={{ flex: 1, position: 'relative', background: 'linear-gradient(180deg, #FAFAFB, #EFEFF2)', minHeight: 520 }}>
-            <StyleSheet3DCanvas viewMode={viewMode} />
+            <StyleSheet3DCanvas viewMode={viewMode} presentation={presentation3D} style={style} />
           </div>
 
           <div style={{
@@ -137,12 +156,43 @@ export function StyleSheetEmbed({ styleId = 'ST-27-011' }: { styleId?: string })
             fontSize: 10, color: '#4A4844', display: 'flex', gap: 16, flexWrap: 'wrap'
           }}>
             <span>SIDE VIEW DISCLOSES CLOSURE PLACEMENT</span>
-            <span>CLOTH SIMULATED · NOT DIMENSIONALLY VERIFIED</span>
+            <span>PRESENTATION ONLY · NOT A PRODUCTION PATTERN OR MEASUREMENT SOURCE</span>
           </div>
         </div>
 
         {/* RIGHT COLUMN */}
         <div style={{ display: 'grid', gap: 20, alignContent: 'start' }}>
+          {flatSketch && !flatSketchError && (
+            <section style={{ background: '#FFFFFF', border: '1px solid #DDDDE1', borderRadius: 4, padding: '16px 18px' }}>
+              <h3 style={{
+                fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: '.16em',
+                textTransform: 'uppercase', color: '#4A4844', paddingBottom: 9, marginBottom: 11, borderBottom: '1px solid #DDDDE1'
+              }}>
+                Flat Sketch
+              </h3>
+              <img
+                src={flatSketch}
+                alt="Flat sketch"
+                onError={() => setFlatSketchError(true)}
+                style={{ width: '100%', maxWidth: '100%', borderRadius: 4, border: '1px solid #DDDDE1', display: 'block' }}
+              />
+            </section>
+          )}
+
+          {flatSketchError && (
+            <section style={{ background: '#FFFFFF', border: '1px solid #DDDDE1', borderRadius: 4, padding: '16px 18px' }}>
+              <h3 style={{
+                fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: '.16em',
+                textTransform: 'uppercase', color: '#4A4844', paddingBottom: 9, marginBottom: 11, borderBottom: '1px solid #DDDDE1'
+              }}>
+                Flat Sketch
+              </h3>
+              <p style={{ margin: 0, fontSize: 11.5, color: '#4A4844', lineHeight: 1.5 }}>
+                Flat sketch not available in this demo. Image file is missing or not yet uploaded.
+              </p>
+            </section>
+          )}
+
           <div style={{ background: '#FFFFFF', border: '1px solid #DDDDE1', borderRadius: 4, padding: '16px 18px' }}>
             <h3 style={{
               fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: '.16em',
@@ -294,6 +344,48 @@ export function StyleSheetEmbed({ styleId = 'ST-27-011' }: { styleId?: string })
       }}>
         STYLE SHEET · INTERNAL. Not manufacturable on its own — the factory works from the SPEC SHEET (flat sketch, arrows, measurements) and makes its own paper pattern; the SCHEMATIC carries the true-to-size layout. Synthetic data. Nothing on this sheet has been validated by a factory.
       </p>
+
+      {parsed && (
+        <div style={{ background: '#FFFFFF', border: '1px solid #DDDDE1', borderRadius: 4, padding: '16px 18px', marginTop: 20 }}>
+          <h3 style={{
+            fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: '.16em',
+            textTransform: 'uppercase', color: '#4A4844', paddingBottom: 9, marginBottom: 11, borderBottom: '1px solid #DDDDE1'
+          }}>
+            Sketch Analysis
+          </h3>
+          <p style={{ fontSize: 12.5, marginBottom: 6 }}><strong>Status:</strong> {parsed.field_status}</p>
+          <p style={{ fontSize: 12.5, marginBottom: 6 }}><strong>Garment category:</strong> {parsed.garment_category}</p>
+          <p style={{ fontSize: 12.5, marginBottom: 12 }}><strong>Silhouette:</strong> {parsed.silhouette}</p>
+
+          <h4 style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: '#4A4844', marginBottom: 8 }}>
+            Key design features
+          </h4>
+          <ul style={{ margin: '0 0 12px 18px', fontSize: 12.5, lineHeight: 1.6 }}>
+            <li><strong>Neckline:</strong> {parsed.key_design_features.neckline}</li>
+            <li><strong>Sleeves:</strong> {parsed.key_design_features.sleeves}</li>
+            <li><strong>Seams & darts:</strong> {parsed.key_design_features.seams_darts}</li>
+            <li><strong>Pockets:</strong> {parsed.key_design_features.pockets}</li>
+            <li><strong>Closures:</strong> {parsed.key_design_features.closures}</li>
+            <li><strong>Hem:</strong> {parsed.key_design_features.hem}</li>
+          </ul>
+
+          <h4 style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: '#4A4844', marginBottom: 8 }}>
+            Views
+          </h4>
+          <p style={{ fontSize: 12.5, marginBottom: 6 }}><strong>Present:</strong> {parsed.views_present.join(', ')}</p>
+          <p style={{ fontSize: 12.5, marginBottom: 12 }}><strong>Missing:</strong> {parsed.views_missing.join(', ')}</p>
+
+          <h4 style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: '#4A4844', marginBottom: 8 }}>
+            Proportions
+          </h4>
+          <ul style={{ margin: '0 0 0 18px', fontSize: 12.5, lineHeight: 1.6 }}>
+            <li><strong>Shoulder:</strong> {parsed.rough_proportions.shoulder}</li>
+            <li><strong>Waist:</strong> {parsed.rough_proportions.waist}</li>
+            <li><strong>Skirt volume:</strong> {parsed.rough_proportions.skirt_volume}</li>
+            <li><strong>Length:</strong> {parsed.rough_proportions.length}</li>
+          </ul>
+        </div>
+      )}
     </div>
   )
 }

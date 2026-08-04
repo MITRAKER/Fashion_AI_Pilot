@@ -47,10 +47,10 @@ export function seedIfEmpty(db: DB) {
     for (const st of c.styles) {
       db.prepare(`INSERT INTO styles
         (id, collection_id, name, category, category_key, status, version, base_size,
-         units, size_range, owner, colorways) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
+         units, size_range, owner, colorways, flat_sketch_url) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`)
         .run(st.id, c.id, st.name, st.category, st.categoryKey, st.status, st.version,
              st.baseSize, st.units, JSON.stringify(st.sizeRange), st.owner,
-             JSON.stringify(st.colorways))
+             JSON.stringify(st.colorways), st.assets.flatSketch ?? null)
 
       st.fields.forEach((f, i) => db.prepare(`INSERT INTO style_fields
         (id, style_id, section, label, value, unit, source, created_by, created_at,
@@ -82,7 +82,7 @@ export function seedIfEmpty(db: DB) {
           .run(t.id, st.id, t.item, t.spec, t.placement, t.qty, ...provCols(t))
       }
 
-      for (const a of st.assets) {
+      for (const a of st.assets.items) {
         db.prepare(`INSERT INTO assets (id, style_id, mode, title, caption, palette, synthetic)
                     VALUES (?,?,?,?,?,?,?)`)
           .run(a.id, st.id, a.mode, a.title, a.caption, JSON.stringify(a.palette),

@@ -1,15 +1,79 @@
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
+// Namespace import: garment-engine's CJS build re-exports through a nested
+// `export *` chain that Rollup's static named-export analysis can't see
+// through (fails with "X is not exported by ..." at `vite build` time even
+// though `tsc` resolves the types fine). A namespace import always works
+// since it just binds to the module's exports object at runtime.
+import * as GarmentEngineModule from 'garment-engine'
+import type { ParsedSketch as EngineParsedSketch } from 'garment-engine'
+import type { Style } from '../../shared/types.ts'
+
+const { GarmentEngine, ThreeGarmentMesh } = GarmentEngineModule
 
 /**
  * Native React 3D Style Sheet Canvas.
- * Renders the procedural dress form and live XPBD-settled wool coat drape
+ * Renders the procedural dress form and either a live XPBD-settled drape
+ * or a garment-engine draped-cloth presentation garment
  * directly inside the React DOM tree without an iframe or bare-specifier issue.
  *
  * The viewMode prop drives the camera azimuth smoothly via a ref
  * so the Three.js scene is only created once, never torn down on view changes.
  */
-export function StyleSheet3DCanvas({ viewMode = 'front' }: { viewMode?: 'front' | 'side' | 'back' }) {
+
+function normalizeText(value?: string) {
+  return value?.toLowerCase() ?? ''
+}
+
+/**
+ * TEMPORARY shim — maps this app's ParsedSketch (shared/types.ts: snake_case,
+ * nested key_design_features, no hemLength enum) onto garment-engine's
+ * ParsedSketch (camelCase, flat, enum hemLength) just enough that
+ * GarmentEngine's constructor doesn't throw on real seed.ts data. Prompt 3
+ * replaces this with a proper adaptParsedSketchForEngine adapter plus a
+ * field-mapping table and unit tests — do not treat this mapping as final.
+ */
+function shimParsedSketchForEngine(style?: Style): EngineParsedSketch {
+  const parsed = style?.parsedSketch
+  const kdf = parsed?.key_design_features
+  const garmentText = [parsed?.garment_category, style?.category, style?.name].map(normalizeText).join(' ')
+  const lengthText = [kdf?.hem, parsed?.rough_proportions?.length].map(normalizeText).join(' ')
+
+  const garmentCategory: EngineParsedSketch['garmentCategory'] = /dress|gown|slip/.test(garmentText)
+    ? 'dress'
+    : /coat|jacket|outerwear|trench/.test(garmentText)
+      ? 'coat'
+      : /skirt/.test(garmentText)
+        ? 'skirt'
+        : /pant|trouser/.test(garmentText)
+          ? 'pants'
+          : 'top'
+
+  const hemLength: EngineParsedSketch['hemLength'] = /mini/.test(lengthText)
+    ? 'mini'
+    : /floor/.test(lengthText)
+      ? 'floor'
+      : /ankle/.test(lengthText)
+        ? 'ankle'
+        : /maxi/.test(lengthText)
+          ? 'maxi'
+          : /midi/.test(lengthText)
+            ? 'midi'
+            : 'knee'
+
+  return {
+    garmentCategory,
+    silhouette: parsed?.silhouette ?? '',
+    neckline: kdf?.neckline ?? '',
+    sleeveType: kdf?.sleeves ?? '',
+    hemLength,
+    keyDesignFeatures: kdf ? Object.values(kdf).filter(Boolean) : [],
+  }
+}
+
+export function StyleSheet3DCanvas({
+  viewMode = 'front', presentation = false, style,
+}: { viewMode?: 'front' | 'side' | 'back'; presentation?: boolean; style?: Style }) {
   const mountRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef(viewMode)
 
@@ -39,7 +103,14 @@ export function StyleSheet3DCanvas({ viewMode = 'front' }: { viewMode?: 'front' 
     function resize() {
       if (!mount) return
       const w = mount.clientWidth, h = mount.clientHeight
-      renderer.setSize(w, h, false)
+      // updateStyle must be true: with it false, the canvas has no CSS size of
+      // its own and falls back to its width/height attributes (which are in
+      // device pixels, i.e. w/h * devicePixelRatio) as its layout box. On any
+      // devicePixelRatio > 1 display that makes the canvas bigger than its
+      // container, which grows the container, which re-fires this
+      // ResizeObserver — an exponential feedback loop that pins the canvas at
+      // the browser's max size within a couple dozen frames.
+      renderer.setSize(w, h, true)
       camera.aspect = w / Math.max(h, 1)
       camera.updateProjectionMatrix()
     }
@@ -150,7 +221,12 @@ export function StyleSheet3DCanvas({ viewMode = 'front' }: { viewMode?: 'front' 
     }
 
     // 5. Procedural Wool Coat Garment & XPBD Solver
-    const COLS = 56, ROWS = 40, OPENING = 0.62, TOP = 0.598, LENGTH = 0.74, START_R = 0.178
+    const COLS = presentation ? 60 : 56
+    const ROWS = presentation ? 44 : 40
+    const OPENING = presentation ? 0.46 : 0.62
+    const TOP = presentation ? 0.655 : 0.598
+    const LENGTH = presentation ? 0.84 : 0.74
+    const START_R = presentation ? 0.166 : 0.178
     const garmentGeo = new THREE.PlaneGeometry(1, 1, COLS - 1, ROWS - 1)
     const posAttr = garmentGeo.attributes.position
     const count = posAttr.count
@@ -246,15 +322,50 @@ export function StyleSheet3DCanvas({ viewMode = 'front' }: { viewMode?: 'front' 
     garmentMesh.receiveShadow = true
     scene.add(garmentMesh)
 
+    // 5b. Presentation garment — real draped-cloth simulation from garment-engine,
+    // replacing the old sketch-decal-on-primitive-shell rendering.
+    let presentationEngine: InstanceType<typeof GarmentEngine> | undefined
+    let presentationMesh: InstanceType<typeof ThreeGarmentMesh> | undefined
+
+    if (presentation) {
+      garmentMesh.visible = false
+
+      const parsedSketchForEngine = shimParsedSketchForEngine(style)
+      presentationEngine = new GarmentEngine(parsedSketchForEngine)
+      presentationMesh = new ThreeGarmentMesh(presentationEngine, {
+        color: 0xc8b59a, roughness: 0.58, metalness: 0.0, envMap, envMapIntensity: 0.9,
+      })
+      presentationMesh.mesh.castShadow = true
+      presentationMesh.mesh.receiveShadow = true
+
+      // garment-engine works in real-world meters (avatar ~1.7m, shoulder at
+      // y≈1.4, floor at y≈0). This scene's mannequin/camera rig is tuned to a
+      // much smaller abstract unit scale (the old presentation garment spanned
+      // roughly y=-0.82 at hem to y=0.4 at shoulder). Wrap in a group so the
+      // engine's mesh lands in the same visual "slot" the old shell occupied,
+      // without touching the camera/lighting/mannequin setup above.
+      const engineWrapper = new THREE.Group()
+      const OLD_SHOULDER_Y = 0.4
+      const OLD_HEM_Y = -0.82
+      const ENGINE_SHOULDER_Y = 1.4
+      const ENGINE_FLOOR_Y = -0.02
+      const fitScale = (OLD_SHOULDER_Y - OLD_HEM_Y) / (ENGINE_SHOULDER_Y - ENGINE_FLOOR_Y)
+      engineWrapper.scale.setScalar(fitScale)
+      engineWrapper.position.y = OLD_SHOULDER_Y - ENGINE_SHOULDER_Y * fitScale
+      engineWrapper.add(presentationMesh.mesh)
+      scene.add(engineWrapper)
+    }
+
     // 6. Camera Azimuth & Animation Loop — exact values from stylesheet.html
     const VIEWS: Record<string, number> = { front: 0, side: -Math.PI / 2, back: Math.PI }
     let targetAz = VIEWS[viewRef.current] ?? 0
     let az = targetAz
-    const RADIUS = 2.55, HEIGHT = 0.40
+    const RADIUS = presentation ? 2.9 : 2.55
+    const HEIGHT = presentation ? 0.20 : 0.40
 
     function updateCamera() {
       camera.position.set(Math.sin(az) * RADIUS, HEIGHT, Math.cos(az) * RADIUS)
-      camera.lookAt(0, 0.24, 0)
+      camera.lookAt(0, presentation ? -0.02 : 0.24, 0)
     }
 
     // Drag to rotate — exact behavior from stylesheet.html
@@ -285,6 +396,10 @@ export function StyleSheet3DCanvas({ viewMode = 'front' }: { viewMode?: 'front' 
       az += (targetAz - az) * 0.09   // eased, never snapped — matches stylesheet.html
       updateCamera()
       stepGarment(dt)
+      if (presentationEngine && presentationMesh) {
+        presentationEngine.update(dt)
+        presentationMesh.updateFrame()
+      }
       renderer.render(scene, camera)
     }
     tick()
@@ -295,11 +410,12 @@ export function StyleSheet3DCanvas({ viewMode = 'front' }: { viewMode?: 'front' 
       mount.removeEventListener('pointerdown', onPointerDown)
       window.removeEventListener('pointerup', onPointerUp)
       window.removeEventListener('pointermove', onPointerMove)
+      presentationMesh?.dispose()
       renderer.dispose()
       pmrem.dispose()
       if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement)
     }
-  }, []) // Empty deps — scene created once, viewMode read from ref
+  }, [presentation, style]) // Rebuild only when garment data changes; viewMode is read from ref
 
   return <div ref={mountRef} style={{ width: '100%', height: '100%', cursor: 'grab' }} />
 }
