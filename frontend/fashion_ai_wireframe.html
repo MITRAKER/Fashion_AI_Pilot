@@ -110,6 +110,52 @@ tr:hover td{background:#fafafc}
 .stage.gate::before{content:"GATE";position:absolute;top:-9px;left:8px;font-family:var(--mono);font-size:8px;letter-spacing:.18em;background:var(--ink);color:#fff;padding:1px 5px}
 .ticks{display:flex;min-width:1060px;border-left:1.5px solid transparent}
 .ticks span{flex:1;min-width:64px;border-right:1px solid transparent;font-family:var(--mono);font-size:8.5px;color:#b3b1ac;padding:4px 8px 0}
+/* master calendar */
+.mc-legend{display:flex;gap:18px;flex-wrap:wrap;font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--graphite);margin-bottom:14px;text-transform:uppercase}
+.mc-legend .lg{display:inline-block;width:14px;height:8px;margin-right:6px;vertical-align:middle}
+.lg-dev{background:#DEDEE4;border:1px solid #b9b9c2}
+.lg-gate{background:var(--ink)}
+.lg-mkt{background:repeating-linear-gradient(45deg,#cfd9f2,#cfd9f2 3px,#fff 3px,#fff 6px);border:1px solid #b9c6ee}
+.lg-dlv{background:#E6F2EC;border:1px solid #bcd9cb}
+.mc-scroll{overflow-x:auto;padding-bottom:6px}
+.mc-months{display:flex;min-width:1560px;border-bottom:1.5px solid var(--ink);margin-left:150px}
+.mc-months span{flex:none;font-family:var(--mono);font-size:9px;letter-spacing:.06em;color:#8d8b86;padding:2px 0 4px;border-left:1px dashed var(--line)}
+.mc-row{display:flex;align-items:center;min-width:1710px;border-bottom:1px dashed var(--line);padding:10px 0}
+.mc-name{flex:none;width:150px;padding-right:10px}
+.mc-name b{font-size:12.5px;display:block}
+.mc-name span{font-family:var(--mono);font-size:9px;color:#8d8b86;letter-spacing:.04em}
+.mc-track{position:relative;height:34px;flex:none;width:1560px;background:linear-gradient(to right,transparent 0,transparent 100%)}
+.mc-stage{position:absolute;top:6px;height:16px;background:#DEDEE4;border:1px solid #b9b9c2;cursor:pointer;box-sizing:border-box}
+.mc-stage:hover{background:var(--chalk-soft);border-color:var(--chalk)}
+.mc-stage.gate{background:var(--ink);border-color:var(--ink);width:5px!important}
+.mc-stage.sel{background:var(--chalk);border-color:var(--chalk)}
+.mc-band{position:absolute;top:26px;height:6px}
+.mc-band.mkt{background:repeating-linear-gradient(45deg,#cfd9f2,#cfd9f2 3px,#fff 3px,#fff 6px);border:1px solid #b9c6ee}
+.mc-band.dlv{background:#E6F2EC;border:1px solid #bcd9cb}
+.mc-show{position:absolute;top:-4px;font-size:11px;color:var(--ink);cursor:default}
+/* stage detail + mood board portal */
+.backlink{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--chalk);cursor:pointer;margin-bottom:14px;display:inline-block}
+.board{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;background:#fff;border:1.5px solid var(--ink);padding:14px}
+.tile{position:relative;aspect-ratio:1/1;border:1px solid var(--line);overflow:hidden;display:flex;align-items:flex-end;background-size:cover;background-position:center}
+.tile.wide{grid-column:span 2;aspect-ratio:2.06/1}
+.tile .prov{font-family:var(--mono);font-size:8px;letter-spacing:.08em;text-transform:uppercase;background:rgba(255,255,255,.92);border-top:1px solid var(--line);padding:3px 6px;width:100%}
+.tile.sel-ref{outline:3px solid var(--chalk);outline-offset:-3px}
+.tile .refmark{position:absolute;top:6px;right:6px;background:var(--chalk);color:#fff;font-family:var(--mono);font-size:9px;padding:2px 6px;display:none}
+.tile.sel-ref .refmark{display:block}
+.vrail{display:flex;gap:14px;flex-wrap:wrap}
+.vcard{border:1px solid var(--line);background:#fff;padding:12px;width:210px}
+.vcard.current{border:1.5px solid var(--chalk)}
+.vcard .vthumb{height:74px;background:linear-gradient(120deg,#E8E0D0 25%,#6b7a5a 25% 45%,#1F1F1F 45% 60%,#B98B2F00 0),linear-gradient(60deg,#cbb9a2 40%,#8a8f98 40%);border:1px solid var(--line);margin-bottom:8px}
+.vcard .vmeta{font-family:var(--mono);font-size:10px;line-height:1.7;color:var(--graphite)}
+.amber{background:#F5EEDB;border:1px solid #dccf9f;color:#8A6A1F;padding:10px 14px;font-size:12.5px;margin-bottom:14px}
+.portalbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.genpanel{border:1.5px dashed var(--chalk);background:var(--chalk-soft);padding:14px;margin-top:14px}
+.genpanel textarea{width:100%;border:1px solid var(--line);font-family:var(--body);font-size:13px;padding:8px;min-height:54px;box-sizing:border-box}
+.genrow{display:flex;gap:10px;align-items:center;margin-top:10px;flex-wrap:wrap}
+.genrow select{font-family:var(--mono);font-size:11px;padding:6px}
+@media(max-width:980px){.board{grid-template-columns:repeat(2,1fr)}}
+
+
 
 .provrow{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding:13px 0;border-bottom:1px dashed var(--line)}
 .provrow:last-child{border-bottom:0}
@@ -209,7 +255,7 @@ tr:hover td{background:#fafafc}
       <h3>Stage status</h3>
       <table>
         <tr><th>Stage</th><th>Owner</th><th>Due</th><th>Status</th><th></th></tr>
-        <tr><td>3 · Mood sketches and presentation boards</td><td>B. Osei, designer</td><td>Wk 6</td><td><span class="chip c-approved">Complete</span></td><td></td></tr>
+        <tr><td>3 · Mood sketches and presentation boards</td><td>B. Osei, designer</td><td>Wk 6</td><td><span class="chip c-approved" style="cursor:pointer" onclick="go('stage3',null)">Complete</span></td><td><button class="btn ghost sm" onclick="go('stage3',null)">Open board</button></td></tr>
         <tr><td>4 · Concept green light</td><td>M. Chen, creative dir.</td><td>Wk 6</td><td><span class="chip c-approved">Approved</span></td><td class="mono" style="font-size:10px;color:#8d8b86">Gate · signed Wk 6</td></tr>
         <tr><td>5 · Prototype presentation sketches</td><td>B. Osei, designer</td><td>Wk 10</td><td><span class="chip c-review">In review</span></td><td><button class="btn ghost sm" onclick="go('style',navBtn('style'))">Open styles</button></td></tr>
         <tr><td>7 · Technical flats and spec draft</td><td>N. Walker, tech design</td><td>Wk 14</td><td><span class="chip c-blocker">Blocked</span></td><td class="mono" style="font-size:10px;color:var(--thread)">Waiting on design gate</td></tr>
@@ -235,32 +281,36 @@ tr:hover td{background:#fafafc}
 
   <!-- CALENDAR -->
   <section class="page" id="pg-cal">
-    <div class="crumb">SS27 / Season calendar</div>
-    <h2 class="pg">52-week season plan</h2>
-    <p class="pg-sub">The Spring/Summer template lays 15 stages on a measuring tape. Four gates require named approvers. A stage cannot start until upstream approvals are satisfied or an authorized override is recorded. (COL-002, section 4)</p>
+    <div class="crumb">Master Calendar / Dress Company 52-Week Model / 2027 Selling Year</div>
+    <h2 class="pg">Season master calendar · seven deliveries, back-scheduled</h2>
+    <p class="pg-sub">The American dress-house model: SEVEN seasons per selling year — Spring 1, Spring 2, Summer, Fall 1, Fall 2, Holiday, Resort — each back-scheduled 52 weeks from its START-SHIP date. Fabric platform locks BEFORE the mood board. Click any milestone: season, phase, owner, date, and weeks-before-ship are always shown. (COL-002)</p>
 
     <div class="card">
-      <h3>Stage tape · click a stage</h3>
-      <div class="tape">
-        <div class="tape-inner" id="tape"></div>
-        <div class="ticks" id="ticks"></div>
+      <h3>Seven season rows · 21 milestones each · click any block</h3>
+      <div class="mc-legend" id="ph-legend"></div>
+      <div class="mc-scroll">
+        <div class="mc-months" id="mc-months"></div>
+        <div id="mc-rows"></div>
       </div>
       <hr class="seam">
-      <div id="stage-detail" class="kv">
-        <span class="lab">Stage</span><b>Select a stage on the tape above</b>
+      <div id="mc-detail" class="kv">
+        <span class="lab">Milestone</span><b>Click any milestone block — all fields are indicated</b>
       </div>
     </div>
 
     <div class="card">
-      <h3>Approval gates</h3>
+      <h3>The spine · ship + sell-through per season</h3>
       <table>
-        <tr><th>Gate</th><th>Week</th><th>Named approver</th><th>State</th></tr>
-        <tr><td>Concept green light</td><td>6</td><td>M. Chen, creative director</td><td><span class="chip c-approved">Approved</span></td></tr>
-        <tr><td>Design green light</td><td>10</td><td>M. Chen, creative director</td><td><span class="chip c-review">In review</span></td></tr>
-        <tr><td>Technical package</td><td>28</td><td>N. Walker, technical designer</td><td><span class="chip c-draft">Not started</span></td></tr>
-        <tr><td>Production handoff</td><td>30</td><td>N. Walker + factory reviewer</td><td><span class="chip c-draft">Not started</span></td></tr>
+        <tr><th>Season</th><th>Code</th><th>Start ship</th><th>Retail sell-through</th><th>Dev begins</th></tr>
+        <tr><td>Spring 1 2027</td><td class="mono">SP127</td><td>Jan 30 2027</td><td>Jan–Mar</td><td>Jan 31 2026 (wk 52 before ship)</td></tr>
+        <tr><td>Spring 2 2027</td><td class="mono">SP227</td><td>Mar 30 2027</td><td>Mar–May</td><td>Mar 31 2026</td></tr>
+        <tr><td>Summer 2027</td><td class="mono">SUM27</td><td>May 15 2027</td><td>May–Jul</td><td>May 16 2026</td></tr>
+        <tr><td>Fall 1 2027</td><td class="mono">FA127</td><td>Jul 15 2027</td><td>Jul–Sep</td><td>Jul 16 2026</td></tr>
+        <tr><td>Fall 2 2027</td><td class="mono">FA227</td><td>Sep 30 2027</td><td>Sep–Nov</td><td>Oct 1 2026</td></tr>
+        <tr><td>Holiday 2027</td><td class="mono">HOL27</td><td>Oct 15 2027</td><td>Oct–Dec</td><td>Oct 16 2026</td></tr>
+        <tr><td>Resort 2027</td><td class="mono">RES27</td><td>Nov 30 2027</td><td>Nov–Feb</td><td>Dec 1 2026</td></tr>
       </table>
-      <p style="font-size:12px;color:var(--graphite);margin-top:12px">Changes after approval create a new version and return the gate to Changes Requested. Every transition records actor, timestamp, previous state, new state, and reason.</p>
+      <p style="font-size:12px;color:var(--graphite);margin-top:12px">Nine phases run in fixed order per season: Plan → Research → Concept → Design → Development → Sell-in → Pre-production → Production → Logistics. The market clock (Première Vision, Coterie, Atlanta, NYFW) is fixed and public; the development clock is private and rolls backward from start-ship. The two clocks meet at the fabric platform lock — wk 46 — and at sell-in. Seasons 2028–2029 follow the identical template, offset by one year.</p>
     </div>
   </section>
 
@@ -310,22 +360,73 @@ tr:hover td{background:#fafafc}
     <p class="pg-sub">Every production-critical field carries source, creator, timestamp, AI involvement, and approval state. AI-generated measurements stay Draft until a qualified human approves them. Try approving a field below. (TEC-001, TEC-002, TEC-003)</p>
 
     <div class="card">
-      <h3>Point of measure · base size 38 · cm</h3>
-      <div class="provrow" id="pom1">
-        <div class="f"><b>POM 04 · Across shoulder: 41.0 · tol ±0.5</b><div class="meta">AI suggested · claude-x · Wk 11 14:22 · source: category template + flat v4</div></div>
-        <div class="act"><span class="chip c-review" id="pom1-chip">Suggested</span><button class="btn sm" id="pom1-btn" onclick="approveField('pom1')">Approve</button></div>
+      <h3>Spec sheet · ST-27-011 belted trench · base size 38 · cm</h3>
+      <div style="display:grid;grid-template-columns:440px 1fr;gap:26px;align-items:start">
+      <svg viewBox="0 0 460 500" style="width:100%;max-width:440px" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#3757B8"/></marker>
+        </defs>
+        <!-- technical flat: belted trench, front -->
+        <g fill="none" stroke="#1F1F1F" stroke-width="2" stroke-linejoin="round">
+          <!-- collar + lapels -->
+          <path d="M205 62 L230 78 L255 62 L262 70 L230 100 L198 70 Z"/>
+          <path d="M198 70 L172 96 L206 118 L230 100 M262 70 L288 96 L254 118 L230 100"/>
+          <!-- shoulders -->
+          <path d="M172 96 L112 92 M288 96 L348 92"/>
+          <!-- sleeves -->
+          <path d="M112 92 L64 288 L106 300 L140 150"/>
+          <path d="M348 92 L396 288 L354 300 L320 150"/>
+          <!-- cuff lines -->
+          <path d="M64 288 L106 300 M70 272 L112 284" stroke-width="1.4"/>
+          <path d="M396 288 L354 300 M390 272 L348 284" stroke-width="1.4"/>
+          <!-- body -->
+          <path d="M140 150 L136 244 L128 430 L332 430 L324 244 L320 150"/>
+          <!-- double-breasted front + buttons -->
+          <path d="M230 100 L214 430 M230 100 L246 430" stroke-width="1.4"/>
+          <circle cx="196" cy="196" r="4"/><circle cx="264" cy="196" r="4"/>
+          <circle cx="194" cy="232" r="4"/><circle cx="266" cy="232" r="4"/>
+          <!-- belt -->
+          <rect x="132" y="244" width="196" height="18" stroke-width="1.6"/>
+          <rect x="216" y="247" width="28" height="12" stroke-width="1.4"/>
+          <!-- storm flap hint -->
+          <path d="M246 100 L296 100 L290 178 L250 178" stroke-width="1.2" stroke-dasharray="3 3"/>
+        </g>
+        <!-- dimension arrows (chalk blue) with numbered bubbles -->
+        <g stroke="#3757B8" stroke-width="1.3" fill="none">
+          <line x1="112" y1="76" x2="348" y2="76" marker-start="url(#ar)" marker-end="url(#ar)"/>
+          <line x1="140" y1="162" x2="320" y2="162" marker-start="url(#ar)" marker-end="url(#ar)"/>
+          <line x1="136" y1="272" x2="324" y2="272" marker-start="url(#ar)" marker-end="url(#ar)"/>
+          <line x1="368" y1="92" x2="368" y2="430" marker-start="url(#ar)" marker-end="url(#ar)"/>
+          <line x1="100" y1="86" x2="52" y2="282" marker-start="url(#ar)" marker-end="url(#ar)"/>
+          <line x1="128" y1="452" x2="332" y2="452" marker-start="url(#ar)" marker-end="url(#ar)"/>
+          <line x1="205" y1="48" x2="255" y2="48" marker-start="url(#ar)" marker-end="url(#ar)"/>
+          <line x1="58" y1="308" x2="100" y2="320" marker-start="url(#ar)" marker-end="url(#ar)"/>
+        </g>
+        <g font-family="IBM Plex Mono" font-size="11" text-anchor="middle">
+          <circle cx="230" cy="76" r="9" fill="#1F1F1F"/><text x="230" y="80" fill="#fff">1</text>
+          <circle cx="230" cy="162" r="9" fill="#1F1F1F"/><text x="230" y="166" fill="#fff">2</text>
+          <circle cx="230" cy="288" r="9" fill="#1F1F1F"/><text x="230" y="292" fill="#fff">3</text>
+          <circle cx="368" cy="260" r="9" fill="#1F1F1F"/><text x="368" y="264" fill="#fff">4</text>
+          <circle cx="66" cy="180" r="9" fill="#1F1F1F"/><text x="66" y="184" fill="#fff">5</text>
+          <circle cx="230" cy="470" r="9" fill="#1F1F1F"/><text x="230" y="474" fill="#fff">6</text>
+          <circle cx="230" cy="34" r="9" fill="#1F1F1F"/><text x="230" y="38" fill="#fff">7</text>
+          <circle cx="66" cy="330" r="9" fill="#1F1F1F"/><text x="66" y="334" fill="#fff">8</text>
+        </g>
+      </svg>
+      <div>
+      <table>
+        <tr><th>#</th><th>Point of measure</th><th>Spec</th><th>Tol ±</th><th>State</th></tr>
+        <tr><td class="mono">1</td><td>Across shoulder</td><td>41.0</td><td>0.5</td><td><span class="chip c-review" id="pom1-chip">Suggested</span> <button class="btn sm" id="pom1-btn" onclick="approveField('pom1')">Approve</button></td></tr>
+        <tr><td class="mono">2</td><td>Chest 2.5 below armhole (½)</td><td>53.5</td><td>0.5</td><td><span class="chip c-approved">Approved</span></td></tr>
+        <tr><td class="mono">3</td><td>Waist relaxed (½)</td><td>50.0</td><td>0.5</td><td><span class="chip c-approved">Approved</span></td></tr>
+        <tr><td class="mono">4</td><td>CB length from neck seam</td><td>118.5</td><td>1.0</td><td><span class="chip c-review" id="pom2-chip">Suggested</span> <button class="btn sm" id="pom2-btn" onclick="approveField('pom2')">Approve</button></td></tr>
+        <tr><td class="mono">5</td><td>Sleeve length from shoulder</td><td>60.0</td><td>0.5</td><td><span class="chip c-approved">Approved</span></td></tr>
+        <tr><td class="mono">6</td><td>Hem sweep (½)</td><td>78.0</td><td>1.0</td><td><span class="chip c-approved">Approved</span></td></tr>
+        <tr><td class="mono">7</td><td>Neck width seam to seam</td><td>18.5</td><td>0.3</td><td><span class="chip c-approved">Approved</span></td></tr>
+        <tr><td class="mono">8</td><td>Cuff opening (½)</td><td>14.0</td><td>0.3</td><td><span class="chip c-blocker">Missing</span></td></tr>
+      </table>
+      <p style="font-size:12px;color:var(--graphite);margin-top:12px">Every number on the flat is an arrow; every arrow is a row. AI-drafted values enter as Suggested and hold the pack in Draft until a qualified human approves each one. Missing required POMs block factory export. (TEC-001–003, VAL-001)</p>
       </div>
-      <div class="provrow" id="pom2">
-        <div class="f"><b>POM 09 · CB length: 118.5 · tol ±1.0</b><div class="meta">AI suggested · claude-x · Wk 11 14:22 · confidence flagged low, archive reference differs</div></div>
-        <div class="act"><span class="chip c-review" id="pom2-chip">Suggested</span><button class="btn sm" id="pom2-btn" onclick="approveField('pom2')">Approve</button></div>
-      </div>
-      <div class="provrow">
-        <div class="f"><b>POM 12 · Sleeve length from CB: 80.0 · tol ±0.5</b><div class="meta">Human entered · N. Walker · Wk 12 09:10 · measured from fit sample</div></div>
-        <div class="act"><span class="chip c-approved">Approved</span></div>
-      </div>
-      <div class="provrow">
-        <div class="f"><b>POM 17 · Belt length: <span style="color:var(--thread)">missing</span></b><div class="meta">Required for outerwear template · blocks factory export</div></div>
-        <div class="act"><span class="chip c-blocker">Missing</span></div>
       </div>
     </div>
 
@@ -489,6 +590,95 @@ tr:hover td{background:#fafafc}
     </div>
   </section>
 
+
+  <!-- STAGE 3 DETAIL -->
+  <section class="page" id="pg-stage3">
+    <span class="backlink" onclick="go('dash',navBtn('dash'))">&larr; Dashboard / Stage status</span>
+    <div class="crumb">SS27 / Stage 3 / Mood + Boards</div>
+    <h2 class="pg">Stage 3 &middot; Mood sketches and presentation boards</h2>
+    <p class="pg-sub">"Complete" is a door, not a decoration: the approved artifact, its approval record, and the provenance of every element &mdash; one click from the status chip. (VER-001, REF-002)</p>
+
+    <div class="card">
+      <h3>Approved board &middot; v1 &middot; SEALED</h3>
+      <div class="board" id="board-v1">
+        <div class="tile wide" style="background:linear-gradient(130deg,#E8E0D0 30%,#cbb9a2 30% 55%,#8a8f98 55%)"><span class="prov">AI-GENERATED &middot; kept by B. Osei &middot; prompt on file</span></div>
+        <div class="tile" style="background:#E8E0D0"><span class="prov">COLOR &middot; BONE #E8E0D0</span></div>
+        <div class="tile" style="background:#1F1F1F"><span class="prov" style="color:#1F1F1F">COLOR &middot; INK #1F1F1F</span></div>
+        <div class="tile" style="background:#6b7a5a"><span class="prov">COLOR &middot; MOSS #6B7A5A</span></div>
+        <div class="tile" style="background:repeating-linear-gradient(45deg,#cbb9a2,#cbb9a2 3px,#E8E0D0 3px,#E8E0D0 7px)"><span class="prov">SWATCH SCAN &middot; UPLOADED &middot; silk faille 19mm</span></div>
+        <div class="tile" style="background:linear-gradient(#fff,#fff)"><svg viewBox="0 0 80 80" style="width:100%;height:100%"><path d="M40 12 l-9 6 -5 44 h28 l-5 -44 z M31 18 l-12 10 M49 18 l12 10" fill="none" stroke="#1F1F1F" stroke-width="2"/></svg><span class="prov" style="position:absolute;bottom:0">SILHOUETTE &middot; B. OSEI HAND SKETCH</span></div>
+        <div class="tile" style="background:#f2ede4;align-items:center;justify-content:center;display:flex"><div style="font-family:var(--display);font-size:15px;padding:10px;text-align:center">"structured ease &mdash; the trench, undone"</div><span class="prov" style="position:absolute;bottom:0">DIRECTION NOTE &middot; TYPED</span></div>
+        <div class="tile" style="background:linear-gradient(160deg,#8a8f98 40%,#5a6068 40%)"><span class="prov">ARCHIVE REF &middot; RIGHTS-CLEARED &middot; 1968 coat</span></div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h3>Approval record &middot; immutable</h3>
+        <div class="kv">
+          <span class="lab">Gate</span><b>Concept green light</b><br>
+          <span class="lab">Approved by</span>M. Chen, creative director<br>
+          <span class="lab">Signed</span>Week 6 &middot; gate event, immutable<br>
+          <span class="lab">Status</span><span class="chip c-warn">SUPERSEDED &middot; v2 draft in progress</span><br>
+          <span class="lab">Feeds from</span><a onclick="toast('Upstream: Creative brief (Stage 1) - structured fields that governed this board.')" style="color:var(--chalk);cursor:pointer">Creative brief (Stage 1)</a><br>
+          <span class="lab">Feeds into</span><a onclick="go('style',navBtn('style'))" style="color:var(--chalk);cursor:pointer">Presentation sketches (Stage 5)</a>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Version rail &middot; the archive</h3>
+        <div class="vrail">
+          <div class="vcard"><div class="vthumb"></div><div class="vmeta"><b>v1 &middot; APPROVED</b><br>M. Chen &middot; Wk 6<br>SEALED &middot; view-only</div></div>
+          <div class="vcard current"><div class="vthumb" style="filter:hue-rotate(20deg)"></div><div class="vmeta"><b>v2 &middot; DRAFT</b><br>opened by B. Osei &middot; Wk 9<br>why: "reference oversaturated<br>in market"</div><button class="btn sm" style="margin-top:8px" onclick="go('portal',null)">Open in portal</button></div>
+        </div>
+        <p style="font-size:12px;color:var(--graphite);margin-top:12px">Touching an approved board seals it automatically and opens a draft copy. Designers play freely; the system files the paperwork. Downstream stages show amber until v2 is approved.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- MOOD BOARD PORTAL -->
+  <section class="page" id="pg-portal">
+    <span class="backlink" onclick="go('stage3',null)">&larr; Stage 3 / Board versions</span>
+    <div class="crumb">SS27 / Stage 3 / Portal / v2 draft</div>
+    <h2 class="pg">Mood board portal</h2>
+    <div class="amber"><b>v2 &middot; DRAFT</b> &mdash; supersedes approved v1 &middot; concept gate: Changes Requested &middot; downstream stages marked "upstream revision in progress" (work continues)</div>
+
+    <div class="card">
+      <h3>Working board &middot; click tiles to mark as generation references</h3>
+      <div class="portalbar">
+        <label class="btn ghost sm" style="cursor:pointer">Upload from computer<input type="file" accept="image/*" style="display:none" onchange="portalUpload(this)"></label>
+        <button class="btn ghost sm" onclick="toast('Tile removed from draft. v1 remains sealed and untouched. (VER-001)')">Remove selected</button>
+        <span class="mono" style="font-size:10px;color:var(--graphite)">Every tile carries provenance from birth. Uploads are designer-declared; generations carry model + prompt on file.</span>
+      </div>
+      <div class="board" id="board-v2">
+        <div class="tile wide" style="background:linear-gradient(130deg,#E8E0D0 30%,#cbb9a2 30% 55%,#8a8f98 55%)" onclick="refToggle(this)"><span class="refmark">REF</span><span class="prov">AI-GENERATED &middot; kept &middot; from v1</span></div>
+        <div class="tile" style="background:#E8E0D0" onclick="refToggle(this)"><span class="refmark">REF</span><span class="prov">COLOR &middot; BONE</span></div>
+        <div class="tile" style="background:#6b7a5a" onclick="refToggle(this)"><span class="refmark">REF</span><span class="prov">COLOR &middot; MOSS</span></div>
+        <div class="tile" style="background:repeating-linear-gradient(45deg,#cbb9a2,#cbb9a2 3px,#E8E0D0 3px,#E8E0D0 7px)" onclick="refToggle(this)"><span class="refmark">REF</span><span class="prov">SWATCH &middot; silk faille 19mm</span></div>
+      </div>
+
+      <div class="genpanel">
+        <b style="font-size:13px;letter-spacing:.08em">GENERATE AN ELEMENT</b>
+        <p style="font-size:12px;color:var(--graphite);margin:6px 0 10px">The prompt travels WITH the reference tiles you selected above and the season's structured brief (palette, exclusions, rights rules). Provider is configurable &mdash; keys live server-side, never here. (AI-001, CRE-001)</p>
+        <textarea id="genprompt" placeholder="e.g. draped trench silhouette in bone faille, morning light, quiet architecture&hellip;"></textarea>
+        <div class="genrow">
+          <span class="mono" style="font-size:10px">PROVIDER</span>
+          <select><option>OpenAI &middot; image</option><option>Provider B &middot; image</option><option>Compare both</option></select>
+          <span class="mono" style="font-size:10px" id="refcount">0 reference tiles selected</span>
+          <button class="btn sm" onclick="portalGenerate()">Generate</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Approve v2</h3>
+      <div class="genrow">
+        <input type="text" id="whyline" placeholder='Why did this change? (required &mdash; e.g. "reference oversaturated in market")' style="flex:1;border:1px solid var(--line);padding:9px;font-family:var(--body);font-size:13px">
+        <button class="btn" onclick="approveV2()">Submit for approval</button>
+      </div>
+      <p style="font-size:12px;color:var(--graphite);margin-top:10px">On approval: v2 seals with M. Chen's signature and your "why" line joins the archive &mdash; then one human question: does this change invalidate downstream approvals? [Reset design gate / Continuity confirmed]. Judgment at the moment of commitment, logged like everything else.</p>
+    </div>
+  </section>
+
   </main>
 </div>
 
@@ -546,39 +736,55 @@ function pickMode(card,name){
   card.classList.add('sel');
   toast(name+' mode selected. Outputs will carry this label. Modes never mix. (CRE-002)');
 }
-/* build the tape calendar */
-const stages=[
- ["1","Trend + concept","1-3",0,"Season, customer, color, silhouette, fabric themes","done"],
- ["2","Fabric sourcing","2-6",0,"Candidate fabrics, trims, suppliers, constraints","done"],
- ["3","Mood + boards","3-6",0,"Creative boards and early sketch directions","done"],
- ["4","Concept green light","6",1,"Approved collection direction","done"],
- ["5","Presentation sketches","6-10",0,"Selected concepts with details and styling","now"],
- ["6","Design green light","10",1,"Approved designs for technical development","now"],
- ["7","Flats + spec draft","10-14",0,"Front/back flats, POMs, BOM, construction draft",""],
- ["8","First prototype","14-20",0,"Proto sample and factory questions",""],
- ["9","First fitting","20-22",0,"Fit notes, corrections, decision record",""],
- ["10","Second prototype","22-26",0,"Revised sample",""],
- ["11","Second fitting + final","26-28",0,"Approved fit and construction",""],
- ["12","Final pack + handoff","28-30",1,"Locked pack, grading inputs, factory notes",""],
- ["13","Production prep","30-34",0,"Materials, quantities, costing, capacity",""],
- ["14","Bulk production","34-44",0,"Production status and exceptions",""],
- ["15","QC + delivery","44-52",0,"QC results, issue closure, shipment readiness",""]
-];
-const tape=document.getElementById('tape'),ticks=document.getElementById('ticks');
-stages.forEach(s=>{
-  const d=document.createElement('div');
-  d.className='stage '+(s[3]?'gate ':'')+s[5];
-  d.innerHTML='<div class="wk">WK '+s[2]+'</div><div class="nm">'+s[0]+' · '+s[1]+'</div><div class="bar"></div>';
-  d.onclick=()=>{
-    document.getElementById('stage-detail').innerHTML=
-      '<span class="lab">Stage</span><b>'+s[0]+' · '+s[1]+'</b><br>'+
-      '<span class="lab">Weeks</span>'+s[2]+'<br>'+
-      '<span class="lab">Primary output</span>'+s[4]+'<br>'+
-      '<span class="lab">Rule</span>Starts only when upstream approvals are satisfied or an authorized override is recorded';
-  };
-  tape.appendChild(d);
-  const t=document.createElement('span');t.textContent='·';ticks.appendChild(t);
+/* Dress-company 52-week calendar, driven by Natalie's CSV data */
+const CAL = {"order":["SP127","SP227","SUM27","FA127","FA227","HOL27","RES27"],"seasons":{"SP127":{"name":"Spring 1 2027","ship":"2027-01-30","sell":"Jan-Mar","ms":[{"d":"2026-01-31","w":"52","p":"1 Plan","m":"Season strategy + line plan / merch plan sign-off (unit & margin targets, price architecture, class plan)","o":"Merch / Planning"},{"d":"2026-02-14","w":"50","p":"2 Research","m":"Trend + color direction locked; fabric market attended (Premiere Vision / Milano Unica / Texworld)","o":"Design + Sourcing"},{"d":"2026-03-14","w":"46","p":"2 Research","m":"FABRIC PLATFORM LOCKED - staple qualities confirmed with mills, minimums + greige reserved, lab dips issued","o":"Sourcing"},{"d":"2026-03-28","w":"44","p":"3 Concept","m":"MOOD BOARD / CONCEPT BOARD PRESENTED (built on the locked fabric platform)","o":"Design"},{"d":"2026-04-11","w":"42","p":"3 Concept","m":"Concept + color palette approved; lab dips / strike-offs approved","o":"Design + Merch"},{"d":"2026-04-25","w":"40","p":"4 Design","m":"Design begins: silhouette development, sketching, CAD / 3D","o":"Design"},{"d":"2026-05-23","w":"36","p":"4 Design","m":"Line review 1 - style-by-style edit vs line plan; adds & kills","o":"Design + Merch"},{"d":"2026-06-06","w":"34","p":"5 Development","m":"Tech packs / spec packages released; first pattern + block development","o":"Tech Design"},{"d":"2026-06-20","w":"32","p":"5 Development","m":"Protos + spec packs sent to factory (overseas hand-off #1)","o":"Tech Design + Sourcing"},{"d":"2026-07-18","w":"28","p":"5 Development","m":"Protos in-house; fit session 1; comments back to vendor","o":"Tech Design"},{"d":"2026-08-01","w":"26","p":"5 Development","m":"LINE FREEZE / line adoption - final assortment locked","o":"Merch"},{"d":"2026-08-08","w":"25","p":"6 Sell-in","m":"SMS (salesman samples) ordered; bulk fabric blanket booked with mills","o":"Sourcing"},{"d":"2026-09-05","w":"21","p":"6 Sell-in","m":"SMS in-house; line sheets, wholesale pricing, look book / e-comm photography","o":"Sales + Merch"},{"d":"2026-09-12","w":"20","p":"6 Sell-in","m":"MARKET OPENS - showroom appointments + trade shows; sell-in begins","o":"Sales"},{"d":"2026-10-24","w":"14","p":"6 Sell-in","m":"Wholesale order cut-off; final buy quantities consolidated","o":"Sales + Planning"},{"d":"2026-10-31","w":"13","p":"7 Pre-production","m":"Bulk POs issued to factories; bulk fabric released; trims booked","o":"Production"},{"d":"2026-11-14","w":"11","p":"7 Pre-production","m":"PP / TOP sample approved; GPT lab testing cleared","o":"Production + QA"},{"d":"2026-11-21","w":"10","p":"8 Production","m":"PCD - planned cut date; bulk cutting starts","o":"Production"},{"d":"2026-12-19","w":"6","p":"8 Production","m":"Ex-factory; bulk sewing + finishing + final QC complete","o":"Production"},{"d":"2027-01-16","w":"2","p":"9 Logistics","m":"Freight transit complete; DC receipt, ticketing, allocation","o":"Logistics"},{"d":"2027-01-30","w":"0","p":"9 Logistics","m":"START SHIP / FLOOR SET - goods on retail floor","o":"Retail"}]},"SP227":{"name":"Spring 2 2027","ship":"2027-03-30","sell":"Mar-May","ms":[{"d":"2026-03-31","w":"52","p":"1 Plan","m":"Season strategy + line plan / merch plan sign-off (unit & margin targets, price architecture, class plan)","o":"Merch / Planning"},{"d":"2026-04-14","w":"50","p":"2 Research","m":"Trend + color direction locked; fabric market attended (Premiere Vision / Milano Unica / Texworld)","o":"Design + Sourcing"},{"d":"2026-05-12","w":"46","p":"2 Research","m":"FABRIC PLATFORM LOCKED - staple qualities confirmed with mills, minimums + greige reserved, lab dips issued","o":"Sourcing"},{"d":"2026-05-26","w":"44","p":"3 Concept","m":"MOOD BOARD / CONCEPT BOARD PRESENTED (built on the locked fabric platform)","o":"Design"},{"d":"2026-06-09","w":"42","p":"3 Concept","m":"Concept + color palette approved; lab dips / strike-offs approved","o":"Design + Merch"},{"d":"2026-06-23","w":"40","p":"4 Design","m":"Design begins: silhouette development, sketching, CAD / 3D","o":"Design"},{"d":"2026-07-21","w":"36","p":"4 Design","m":"Line review 1 - style-by-style edit vs line plan; adds & kills","o":"Design + Merch"},{"d":"2026-08-04","w":"34","p":"5 Development","m":"Tech packs / spec packages released; first pattern + block development","o":"Tech Design"},{"d":"2026-08-18","w":"32","p":"5 Development","m":"Protos + spec packs sent to factory (overseas hand-off #1)","o":"Tech Design + Sourcing"},{"d":"2026-09-15","w":"28","p":"5 Development","m":"Protos in-house; fit session 1; comments back to vendor","o":"Tech Design"},{"d":"2026-09-29","w":"26","p":"5 Development","m":"LINE FREEZE / line adoption - final assortment locked","o":"Merch"},{"d":"2026-10-06","w":"25","p":"6 Sell-in","m":"SMS (salesman samples) ordered; bulk fabric blanket booked with mills","o":"Sourcing"},{"d":"2026-11-03","w":"21","p":"6 Sell-in","m":"SMS in-house; line sheets, wholesale pricing, look book / e-comm photography","o":"Sales + Merch"},{"d":"2026-11-10","w":"20","p":"6 Sell-in","m":"MARKET OPENS - showroom appointments + trade shows; sell-in begins","o":"Sales"},{"d":"2026-12-22","w":"14","p":"6 Sell-in","m":"Wholesale order cut-off; final buy quantities consolidated","o":"Sales + Planning"},{"d":"2026-12-29","w":"13","p":"7 Pre-production","m":"Bulk POs issued to factories; bulk fabric released; trims booked","o":"Production"},{"d":"2027-01-12","w":"11","p":"7 Pre-production","m":"PP / TOP sample approved; GPT lab testing cleared","o":"Production + QA"},{"d":"2027-01-19","w":"10","p":"8 Production","m":"PCD - planned cut date; bulk cutting starts","o":"Production"},{"d":"2027-02-16","w":"6","p":"8 Production","m":"Ex-factory; bulk sewing + finishing + final QC complete","o":"Production"},{"d":"2027-03-16","w":"2","p":"9 Logistics","m":"Freight transit complete; DC receipt, ticketing, allocation","o":"Logistics"},{"d":"2027-03-30","w":"0","p":"9 Logistics","m":"START SHIP / FLOOR SET - goods on retail floor","o":"Retail"}]},"SUM27":{"name":"Summer 2027","ship":"2027-05-15","sell":"May-Jul","ms":[{"d":"2026-05-16","w":"52","p":"1 Plan","m":"Season strategy + line plan / merch plan sign-off (unit & margin targets, price architecture, class plan)","o":"Merch / Planning"},{"d":"2026-05-30","w":"50","p":"2 Research","m":"Trend + color direction locked; fabric market attended (Premiere Vision / Milano Unica / Texworld)","o":"Design + Sourcing"},{"d":"2026-06-27","w":"46","p":"2 Research","m":"FABRIC PLATFORM LOCKED - staple qualities confirmed with mills, minimums + greige reserved, lab dips issued","o":"Sourcing"},{"d":"2026-07-11","w":"44","p":"3 Concept","m":"MOOD BOARD / CONCEPT BOARD PRESENTED (built on the locked fabric platform)","o":"Design"},{"d":"2026-07-25","w":"42","p":"3 Concept","m":"Concept + color palette approved; lab dips / strike-offs approved","o":"Design + Merch"},{"d":"2026-08-08","w":"40","p":"4 Design","m":"Design begins: silhouette development, sketching, CAD / 3D","o":"Design"},{"d":"2026-09-05","w":"36","p":"4 Design","m":"Line review 1 - style-by-style edit vs line plan; adds & kills","o":"Design + Merch"},{"d":"2026-09-19","w":"34","p":"5 Development","m":"Tech packs / spec packages released; first pattern + block development","o":"Tech Design"},{"d":"2026-10-03","w":"32","p":"5 Development","m":"Protos + spec packs sent to factory (overseas hand-off #1)","o":"Tech Design + Sourcing"},{"d":"2026-10-31","w":"28","p":"5 Development","m":"Protos in-house; fit session 1; comments back to vendor","o":"Tech Design"},{"d":"2026-11-14","w":"26","p":"5 Development","m":"LINE FREEZE / line adoption - final assortment locked","o":"Merch"},{"d":"2026-11-21","w":"25","p":"6 Sell-in","m":"SMS (salesman samples) ordered; bulk fabric blanket booked with mills","o":"Sourcing"},{"d":"2026-12-19","w":"21","p":"6 Sell-in","m":"SMS in-house; line sheets, wholesale pricing, look book / e-comm photography","o":"Sales + Merch"},{"d":"2026-12-26","w":"20","p":"6 Sell-in","m":"MARKET OPENS - showroom appointments + trade shows; sell-in begins","o":"Sales"},{"d":"2027-02-06","w":"14","p":"6 Sell-in","m":"Wholesale order cut-off; final buy quantities consolidated","o":"Sales + Planning"},{"d":"2027-02-13","w":"13","p":"7 Pre-production","m":"Bulk POs issued to factories; bulk fabric released; trims booked","o":"Production"},{"d":"2027-02-27","w":"11","p":"7 Pre-production","m":"PP / TOP sample approved; GPT lab testing cleared","o":"Production + QA"},{"d":"2027-03-06","w":"10","p":"8 Production","m":"PCD - planned cut date; bulk cutting starts","o":"Production"},{"d":"2027-04-03","w":"6","p":"8 Production","m":"Ex-factory; bulk sewing + finishing + final QC complete","o":"Production"},{"d":"2027-05-01","w":"2","p":"9 Logistics","m":"Freight transit complete; DC receipt, ticketing, allocation","o":"Logistics"},{"d":"2027-05-15","w":"0","p":"9 Logistics","m":"START SHIP / FLOOR SET - goods on retail floor","o":"Retail"}]},"FA127":{"name":"Fall 1 2027","ship":"2027-07-15","sell":"Jul-Sep","ms":[{"d":"2026-07-16","w":"52","p":"1 Plan","m":"Season strategy + line plan / merch plan sign-off (unit & margin targets, price architecture, class plan)","o":"Merch / Planning"},{"d":"2026-07-30","w":"50","p":"2 Research","m":"Trend + color direction locked; fabric market attended (Premiere Vision / Milano Unica / Texworld)","o":"Design + Sourcing"},{"d":"2026-08-27","w":"46","p":"2 Research","m":"FABRIC PLATFORM LOCKED - staple qualities confirmed with mills, minimums + greige reserved, lab dips issued","o":"Sourcing"},{"d":"2026-09-10","w":"44","p":"3 Concept","m":"MOOD BOARD / CONCEPT BOARD PRESENTED (built on the locked fabric platform)","o":"Design"},{"d":"2026-09-24","w":"42","p":"3 Concept","m":"Concept + color palette approved; lab dips / strike-offs approved","o":"Design + Merch"},{"d":"2026-10-08","w":"40","p":"4 Design","m":"Design begins: silhouette development, sketching, CAD / 3D","o":"Design"},{"d":"2026-11-05","w":"36","p":"4 Design","m":"Line review 1 - style-by-style edit vs line plan; adds & kills","o":"Design + Merch"},{"d":"2026-11-19","w":"34","p":"5 Development","m":"Tech packs / spec packages released; first pattern + block development","o":"Tech Design"},{"d":"2026-12-03","w":"32","p":"5 Development","m":"Protos + spec packs sent to factory (overseas hand-off #1)","o":"Tech Design + Sourcing"},{"d":"2026-12-31","w":"28","p":"5 Development","m":"Protos in-house; fit session 1; comments back to vendor","o":"Tech Design"},{"d":"2027-01-14","w":"26","p":"5 Development","m":"LINE FREEZE / line adoption - final assortment locked","o":"Merch"},{"d":"2027-01-21","w":"25","p":"6 Sell-in","m":"SMS (salesman samples) ordered; bulk fabric blanket booked with mills","o":"Sourcing"},{"d":"2027-02-18","w":"21","p":"6 Sell-in","m":"SMS in-house; line sheets, wholesale pricing, look book / e-comm photography","o":"Sales + Merch"},{"d":"2027-02-25","w":"20","p":"6 Sell-in","m":"MARKET OPENS - showroom appointments + trade shows; sell-in begins","o":"Sales"},{"d":"2027-04-08","w":"14","p":"6 Sell-in","m":"Wholesale order cut-off; final buy quantities consolidated","o":"Sales + Planning"},{"d":"2027-04-15","w":"13","p":"7 Pre-production","m":"Bulk POs issued to factories; bulk fabric released; trims booked","o":"Production"},{"d":"2027-04-29","w":"11","p":"7 Pre-production","m":"PP / TOP sample approved; GPT lab testing cleared","o":"Production + QA"},{"d":"2027-05-06","w":"10","p":"8 Production","m":"PCD - planned cut date; bulk cutting starts","o":"Production"},{"d":"2027-06-03","w":"6","p":"8 Production","m":"Ex-factory; bulk sewing + finishing + final QC complete","o":"Production"},{"d":"2027-07-01","w":"2","p":"9 Logistics","m":"Freight transit complete; DC receipt, ticketing, allocation","o":"Logistics"},{"d":"2027-07-15","w":"0","p":"9 Logistics","m":"START SHIP / FLOOR SET - goods on retail floor","o":"Retail"}]},"FA227":{"name":"Fall 2 2027","ship":"2027-09-30","sell":"Sep-Nov","ms":[{"d":"2026-10-01","w":"52","p":"1 Plan","m":"Season strategy + line plan / merch plan sign-off (unit & margin targets, price architecture, class plan)","o":"Merch / Planning"},{"d":"2026-10-15","w":"50","p":"2 Research","m":"Trend + color direction locked; fabric market attended (Premiere Vision / Milano Unica / Texworld)","o":"Design + Sourcing"},{"d":"2026-11-12","w":"46","p":"2 Research","m":"FABRIC PLATFORM LOCKED - staple qualities confirmed with mills, minimums + greige reserved, lab dips issued","o":"Sourcing"},{"d":"2026-11-26","w":"44","p":"3 Concept","m":"MOOD BOARD / CONCEPT BOARD PRESENTED (built on the locked fabric platform)","o":"Design"},{"d":"2026-12-10","w":"42","p":"3 Concept","m":"Concept + color palette approved; lab dips / strike-offs approved","o":"Design + Merch"},{"d":"2026-12-24","w":"40","p":"4 Design","m":"Design begins: silhouette development, sketching, CAD / 3D","o":"Design"},{"d":"2027-01-21","w":"36","p":"4 Design","m":"Line review 1 - style-by-style edit vs line plan; adds & kills","o":"Design + Merch"},{"d":"2027-02-04","w":"34","p":"5 Development","m":"Tech packs / spec packages released; first pattern + block development","o":"Tech Design"},{"d":"2027-02-18","w":"32","p":"5 Development","m":"Protos + spec packs sent to factory (overseas hand-off #1)","o":"Tech Design + Sourcing"},{"d":"2027-03-18","w":"28","p":"5 Development","m":"Protos in-house; fit session 1; comments back to vendor","o":"Tech Design"},{"d":"2027-04-01","w":"26","p":"5 Development","m":"LINE FREEZE / line adoption - final assortment locked","o":"Merch"},{"d":"2027-04-08","w":"25","p":"6 Sell-in","m":"SMS (salesman samples) ordered; bulk fabric blanket booked with mills","o":"Sourcing"},{"d":"2027-05-06","w":"21","p":"6 Sell-in","m":"SMS in-house; line sheets, wholesale pricing, look book / e-comm photography","o":"Sales + Merch"},{"d":"2027-05-13","w":"20","p":"6 Sell-in","m":"MARKET OPENS - showroom appointments + trade shows; sell-in begins","o":"Sales"},{"d":"2027-06-24","w":"14","p":"6 Sell-in","m":"Wholesale order cut-off; final buy quantities consolidated","o":"Sales + Planning"},{"d":"2027-07-01","w":"13","p":"7 Pre-production","m":"Bulk POs issued to factories; bulk fabric released; trims booked","o":"Production"},{"d":"2027-07-15","w":"11","p":"7 Pre-production","m":"PP / TOP sample approved; GPT lab testing cleared","o":"Production + QA"},{"d":"2027-07-22","w":"10","p":"8 Production","m":"PCD - planned cut date; bulk cutting starts","o":"Production"},{"d":"2027-08-19","w":"6","p":"8 Production","m":"Ex-factory; bulk sewing + finishing + final QC complete","o":"Production"},{"d":"2027-09-16","w":"2","p":"9 Logistics","m":"Freight transit complete; DC receipt, ticketing, allocation","o":"Logistics"},{"d":"2027-09-30","w":"0","p":"9 Logistics","m":"START SHIP / FLOOR SET - goods on retail floor","o":"Retail"}]},"HOL27":{"name":"Holiday 2027","ship":"2027-10-15","sell":"Oct-Dec","ms":[{"d":"2026-10-16","w":"52","p":"1 Plan","m":"Season strategy + line plan / merch plan sign-off (unit & margin targets, price architecture, class plan)","o":"Merch / Planning"},{"d":"2026-10-30","w":"50","p":"2 Research","m":"Trend + color direction locked; fabric market attended (Premiere Vision / Milano Unica / Texworld)","o":"Design + Sourcing"},{"d":"2026-11-27","w":"46","p":"2 Research","m":"FABRIC PLATFORM LOCKED - staple qualities confirmed with mills, minimums + greige reserved, lab dips issued","o":"Sourcing"},{"d":"2026-12-11","w":"44","p":"3 Concept","m":"MOOD BOARD / CONCEPT BOARD PRESENTED (built on the locked fabric platform)","o":"Design"},{"d":"2026-12-25","w":"42","p":"3 Concept","m":"Concept + color palette approved; lab dips / strike-offs approved","o":"Design + Merch"},{"d":"2027-01-08","w":"40","p":"4 Design","m":"Design begins: silhouette development, sketching, CAD / 3D","o":"Design"},{"d":"2027-02-05","w":"36","p":"4 Design","m":"Line review 1 - style-by-style edit vs line plan; adds & kills","o":"Design + Merch"},{"d":"2027-02-19","w":"34","p":"5 Development","m":"Tech packs / spec packages released; first pattern + block development","o":"Tech Design"},{"d":"2027-03-05","w":"32","p":"5 Development","m":"Protos + spec packs sent to factory (overseas hand-off #1)","o":"Tech Design + Sourcing"},{"d":"2027-04-02","w":"28","p":"5 Development","m":"Protos in-house; fit session 1; comments back to vendor","o":"Tech Design"},{"d":"2027-04-16","w":"26","p":"5 Development","m":"LINE FREEZE / line adoption - final assortment locked","o":"Merch"},{"d":"2027-04-23","w":"25","p":"6 Sell-in","m":"SMS (salesman samples) ordered; bulk fabric blanket booked with mills","o":"Sourcing"},{"d":"2027-05-21","w":"21","p":"6 Sell-in","m":"SMS in-house; line sheets, wholesale pricing, look book / e-comm photography","o":"Sales + Merch"},{"d":"2027-05-28","w":"20","p":"6 Sell-in","m":"MARKET OPENS - showroom appointments + trade shows; sell-in begins","o":"Sales"},{"d":"2027-07-09","w":"14","p":"6 Sell-in","m":"Wholesale order cut-off; final buy quantities consolidated","o":"Sales + Planning"},{"d":"2027-07-16","w":"13","p":"7 Pre-production","m":"Bulk POs issued to factories; bulk fabric released; trims booked","o":"Production"},{"d":"2027-07-30","w":"11","p":"7 Pre-production","m":"PP / TOP sample approved; GPT lab testing cleared","o":"Production + QA"},{"d":"2027-08-06","w":"10","p":"8 Production","m":"PCD - planned cut date; bulk cutting starts","o":"Production"},{"d":"2027-09-03","w":"6","p":"8 Production","m":"Ex-factory; bulk sewing + finishing + final QC complete","o":"Production"},{"d":"2027-10-01","w":"2","p":"9 Logistics","m":"Freight transit complete; DC receipt, ticketing, allocation","o":"Logistics"},{"d":"2027-10-15","w":"0","p":"9 Logistics","m":"START SHIP / FLOOR SET - goods on retail floor","o":"Retail"}]},"RES27":{"name":"Resort 2027","ship":"2027-11-30","sell":"Nov-Feb","ms":[{"d":"2026-12-01","w":"52","p":"1 Plan","m":"Season strategy + line plan / merch plan sign-off (unit & margin targets, price architecture, class plan)","o":"Merch / Planning"},{"d":"2026-12-15","w":"50","p":"2 Research","m":"Trend + color direction locked; fabric market attended (Premiere Vision / Milano Unica / Texworld)","o":"Design + Sourcing"},{"d":"2027-01-12","w":"46","p":"2 Research","m":"FABRIC PLATFORM LOCKED - staple qualities confirmed with mills, minimums + greige reserved, lab dips issued","o":"Sourcing"},{"d":"2027-01-26","w":"44","p":"3 Concept","m":"MOOD BOARD / CONCEPT BOARD PRESENTED (built on the locked fabric platform)","o":"Design"},{"d":"2027-02-09","w":"42","p":"3 Concept","m":"Concept + color palette approved; lab dips / strike-offs approved","o":"Design + Merch"},{"d":"2027-02-23","w":"40","p":"4 Design","m":"Design begins: silhouette development, sketching, CAD / 3D","o":"Design"},{"d":"2027-03-23","w":"36","p":"4 Design","m":"Line review 1 - style-by-style edit vs line plan; adds & kills","o":"Design + Merch"},{"d":"2027-04-06","w":"34","p":"5 Development","m":"Tech packs / spec packages released; first pattern + block development","o":"Tech Design"},{"d":"2027-04-20","w":"32","p":"5 Development","m":"Protos + spec packs sent to factory (overseas hand-off #1)","o":"Tech Design + Sourcing"},{"d":"2027-05-18","w":"28","p":"5 Development","m":"Protos in-house; fit session 1; comments back to vendor","o":"Tech Design"},{"d":"2027-06-01","w":"26","p":"5 Development","m":"LINE FREEZE / line adoption - final assortment locked","o":"Merch"},{"d":"2027-06-08","w":"25","p":"6 Sell-in","m":"SMS (salesman samples) ordered; bulk fabric blanket booked with mills","o":"Sourcing"},{"d":"2027-07-06","w":"21","p":"6 Sell-in","m":"SMS in-house; line sheets, wholesale pricing, look book / e-comm photography","o":"Sales + Merch"},{"d":"2027-07-13","w":"20","p":"6 Sell-in","m":"MARKET OPENS - showroom appointments + trade shows; sell-in begins","o":"Sales"},{"d":"2027-08-24","w":"14","p":"6 Sell-in","m":"Wholesale order cut-off; final buy quantities consolidated","o":"Sales + Planning"},{"d":"2027-08-31","w":"13","p":"7 Pre-production","m":"Bulk POs issued to factories; bulk fabric released; trims booked","o":"Production"},{"d":"2027-09-14","w":"11","p":"7 Pre-production","m":"PP / TOP sample approved; GPT lab testing cleared","o":"Production + QA"},{"d":"2027-09-21","w":"10","p":"8 Production","m":"PCD - planned cut date; bulk cutting starts","o":"Production"},{"d":"2027-10-19","w":"6","p":"8 Production","m":"Ex-factory; bulk sewing + finishing + final QC complete","o":"Production"},{"d":"2027-11-16","w":"2","p":"9 Logistics","m":"Freight transit complete; DC receipt, ticketing, allocation","o":"Logistics"},{"d":"2027-11-30","w":"0","p":"9 Logistics","m":"START SHIP / FLOOR SET - goods on retail floor","o":"Retail"}]}}};
+const PHC = {"1 Plan":"#8d8b86","2 Research":"#6b5fb8","3 Concept":"#3757B8","4 Design":"#2E7D5B","5 Development":"#8A6A1F","6 Sell-in":"#B3272D","7 Pre-production":"#4A4844","8 Production":"#1F1F1F","9 Logistics":"#7a9bb8"};
+const PXW2 = 14; const T0 = new Date(2026,0,26);
+function dW(ds){const d=new Date(ds+'T00:00:00');return (d-T0)/(7*86400000);}
+function fmtD(ds){return new Date(ds+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}
+const leg=document.getElementById('ph-legend');
+Object.entries(PHC).forEach(([p,c])=>{const s=document.createElement('span');s.innerHTML='<i class="lg" style="background:'+c+'"></i>'+p;leg.appendChild(s);});
+const mrow2=document.getElementById('mc-months');
+const NW=Math.ceil(dW('2027-12-15'));
+for(let m=0;m<24;m++){const d=new Date(2026,0+m,26);const s=document.createElement('span');s.style.width=(PXW2*4.345)+'px';s.textContent=d.toLocaleDateString('en-US',{month:'short'})+((d.getMonth()===0)?" '"+String(d.getFullYear()).slice(2):'');mrow2.appendChild(s);}
+const rows2=document.getElementById('mc-rows');
+CAL.order.forEach(code=>{
+ const se=CAL.seasons[code];
+ const row=document.createElement('div');row.className='mc-row';
+ const nm=document.createElement('div');nm.className='mc-name';
+ nm.innerHTML='<b>'+se.name+'</b><span>'+code+' · ship '+fmtD(se.ship).replace(', 2027','')+' · sell '+se.sell+'</span>';
+ row.appendChild(nm);
+ const tr=document.createElement('div');tr.className='mc-track';tr.style.width=(NW*PXW2)+'px';
+ se.ms.forEach(ms=>{
+   const el=document.createElement('div');el.className='mc-stage';
+   el.style.left=(dW(ms.d)*PXW2)+'px';el.style.width='9px';el.style.background=PHC[ms.p]||'#999';el.style.borderColor=PHC[ms.p]||'#999';
+   el.title=se.name+' · '+ms.p+' · '+ms.m;
+   el.onclick=()=>{
+     document.querySelectorAll('.mc-stage.sel').forEach(x=>{x.classList.remove('sel');x.style.outline='';});
+     el.classList.add('sel');el.style.outline='2px solid var(--ink)';
+     document.getElementById('mc-detail').innerHTML=
+      '<span class="lab">Season</span><b>'+se.name+' ('+code+')</b><br>'+
+      '<span class="lab">Phase</span><span style="color:'+(PHC[ms.p]||'#000')+';font-weight:600">'+ms.p+'</span><br>'+
+      '<span class="lab">Milestone</span>'+ms.m+'<br>'+
+      '<span class="lab">Owner</span>'+ms.o+'<br>'+
+      '<span class="lab">Action date</span>'+fmtD(ms.d)+' · <b>'+ms.w+' weeks before start-ship</b><br>'+
+      '<span class="lab">Start ship</span>'+fmtD(se.ship)+' · retail sell-through '+se.sell;
+   };
+   tr.appendChild(el);
+ });
+ const sh=document.createElement('div');sh.className='mc-show';sh.style.left=(dW(se.ship)*PXW2-6)+'px';sh.textContent='▸';sh.title='START SHIP '+fmtD(se.ship);sh.style.color='#B3272D';sh.style.fontSize='14px';tr.appendChild(sh);
+ row.appendChild(tr);rows2.appendChild(row);
 });
+
+/* mood board portal */
+function refToggle(t){t.classList.toggle('sel-ref');const n=document.querySelectorAll('#board-v2 .tile.sel-ref').length;document.getElementById('refcount').textContent=n+' reference tiles selected';}
+function portalUpload(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{const b=document.getElementById('board-v2');const t=document.createElement('div');t.className='tile';t.style.backgroundImage='url('+e.target.result+')';t.onclick=()=>refToggle(t);t.innerHTML='<span class="refmark">REF</span><span class="prov">UPLOADED &middot; designer-declared &middot; '+f.name.slice(0,18)+'</span>';b.appendChild(t);toast('Element added from your computer. Provenance chip attached: UPLOADED, rights designer-declared. (REF-002)');};r.readAsDataURL(f);}
+function portalGenerate(){const p=document.getElementById('genprompt').value.trim();const n=document.querySelectorAll('#board-v2 .tile.sel-ref').length;if(!p){toast('Write a prompt first - it travels with your selected reference tiles.');return;}
+const b=document.getElementById('board-v2');const t=document.createElement('div');t.className='tile';t.style.background='linear-gradient(150deg,#E8E0D0 20%,#b9c6ee 20% 45%,#6b7a5a 45% 70%,#1F1F1F 70%)';t.onclick=()=>refToggle(t);t.innerHTML='<span class="refmark">REF</span><span class="prov">AI-GENERATED &middot; provider via config &middot; '+n+' refs &middot; prompt on file</span>';b.appendChild(t);
+toast('Generated (simulated in wireframe). In the app: the call carries your prompt + '+n+' reference tiles + the structured brief to the configured provider. Tile enters as DRAFT, kept only if you keep it. (CRE-001, SKT-001)');}
+function approveV2(){const w=document.getElementById('whyline').value.trim();if(!w){toast('The "why" line is required - two seasons from now, the archive is the reasoning history of the brand\'s eye.');return;}
+toast('v2 sealed with reason: "'+w+'" - routed to M. Chen for signature. On sign-off: one question follows - reset design gate, or continuity confirmed? Human judgment, logged. (VER-001, section 4.1)');}
+
 </script>
 </body>
 </html>
