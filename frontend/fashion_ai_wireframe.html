@@ -779,9 +779,19 @@ CAL.order.forEach(code=>{
 /* mood board portal */
 function refToggle(t){t.classList.toggle('sel-ref');const n=document.querySelectorAll('#board-v2 .tile.sel-ref').length;document.getElementById('refcount').textContent=n+' reference tiles selected';}
 function portalUpload(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{const b=document.getElementById('board-v2');const t=document.createElement('div');t.className='tile';t.style.backgroundImage='url('+e.target.result+')';t.onclick=()=>refToggle(t);t.innerHTML='<span class="refmark">REF</span><span class="prov">UPLOADED &middot; designer-declared &middot; '+f.name.slice(0,18)+'</span>';b.appendChild(t);toast('Element added from your computer. Provenance chip attached: UPLOADED, rights designer-declared. (REF-002)');};r.readAsDataURL(f);}
-function portalGenerate(){const p=document.getElementById('genprompt').value.trim();const n=document.querySelectorAll('#board-v2 .tile.sel-ref').length;if(!p){toast('Write a prompt first - it travels with your selected reference tiles.');return;}
-const b=document.getElementById('board-v2');const t=document.createElement('div');t.className='tile';t.style.background='linear-gradient(150deg,#E8E0D0 20%,#b9c6ee 20% 45%,#6b7a5a 45% 70%,#1F1F1F 70%)';t.onclick=()=>refToggle(t);t.innerHTML='<span class="refmark">REF</span><span class="prov">AI-GENERATED &middot; provider via config &middot; '+n+' refs &middot; prompt on file</span>';b.appendChild(t);
-toast('Generated (simulated in wireframe). In the app: the call carries your prompt + '+n+' reference tiles + the structured brief to the configured provider. Tile enters as DRAFT, kept only if you keep it. (CRE-001, SKT-001)');}
+function portalSimTile(n){const b=document.getElementById('board-v2');const t=document.createElement('div');t.className='tile';t.style.background='linear-gradient(150deg,#E8E0D0 20%,#b9c6ee 20% 45%,#6b7a5a 45% 70%,#1F1F1F 70%)';t.onclick=()=>refToggle(t);t.innerHTML='<span class="refmark">REF</span><span class="prov">AI-GENERATED &middot; provider via config &middot; '+n+' refs &middot; prompt on file</span>';b.appendChild(t);}
+async function portalGenerate(){const p=document.getElementById('genprompt').value.trim();const n=document.querySelectorAll('#board-v2 .tile.sel-ref').length;if(!p){toast('Write a prompt first - it travels with your selected reference tiles.');return;}
+/* Real endpoint first; any failure (503 = no key, or opened standalone with no server) falls back to the simulated tile. */
+try{
+ const r=await fetch('/api/generate-image',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({prompt:p,referenceNote:n+' reference tiles selected'})});
+ if(!r.ok)throw new Error('http '+r.status);
+ const d=await r.json();
+ const b=document.getElementById('board-v2');const t=document.createElement('div');t.className='tile';t.style.backgroundImage='url('+d.image+')';t.style.backgroundSize='cover';t.onclick=()=>refToggle(t);t.innerHTML='<span class="refmark">REF</span><span class="prov">AI-GENERATED &middot; '+(d.provenance&&d.provenance.model||'provider')+' &middot; '+n+' refs &middot; prompt on file</span>';b.appendChild(t);
+ toast('Generated via '+(d.provenance&&d.provenance.model||'configured provider')+'. Prompt + '+n+' reference tiles on file. Tile enters as DRAFT, kept only if you keep it. (CRE-001, SKT-001)');
+}catch(e){
+ portalSimTile(n);
+ toast('provider not configured — simulated');
+}}
 function approveV2(){const w=document.getElementById('whyline').value.trim();if(!w){toast('The "why" line is required - two seasons from now, the archive is the reasoning history of the brand\'s eye.');return;}
 toast('v2 sealed with reason: "'+w+'" - routed to M. Chen for signature. On sign-off: one question follows - reset design gate, or continuity confirmed? Human judgment, logged. (VER-001, section 4.1)');}
 

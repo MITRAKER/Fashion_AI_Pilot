@@ -500,6 +500,41 @@ const ROUTES: [string, RegExp, Handler][] = [
     audit(db, { actor: user!.name, action: 'Category schema signed off', target: key })
     return { templates: readTemplates(db) }
   }],
+
+  // Portal image generation. The key is read from the server environment only —
+  // it must never appear in a response body or in client code.
+  ['POST', /^\/api\/generate-image$/, async ({ body }) => {
+    const key = process.env.OPENAI_API_KEY
+    if (!key) throw new HttpError(503, 'provider not configured')
+
+    const prompt = typeof body?.prompt === 'string' ? body.prompt.trim() : ''
+    if (!prompt) throw new HttpError(400, 'prompt is required')
+    const referenceNote = typeof body?.referenceNote === 'string' ? body.referenceNote.trim() : ''
+
+    const model = 'gpt-image-1'
+    const upstream = await fetch('https://api.openai.com/v1/images/generations', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
+      body: JSON.stringify({
+        model,
+        prompt: referenceNote ? `${prompt}\n\nReference note: ${referenceNote}` : prompt,
+        size: '1024x1024',
+        n: 1,
+      }),
+    })
+    if (!upstream.ok) {
+      // Do not relay the upstream body — provider errors can echo request headers.
+      throw new HttpError(502, `image provider error (${upstream.status})`)
+    }
+    const data = await upstream.json() as any
+    const b64 = data?.data?.[0]?.b64_json
+    if (!b64) throw new HttpError(502, 'image provider returned no image')
+
+    return {
+      image: `data:image/png;base64,${b64}`,
+      provenance: { model, promptOnFile: true },
+    }
+  }],
 ]
 
 /* ------------------------------------------------------------------ plumbing */
