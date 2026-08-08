@@ -33,7 +33,7 @@ function Shell() {
       <div className="app">
         <aside className="sidebar">
           <div className="brand">
-            <h1>Atelier</h1>
+            <h1>Fashion AI</h1>
             <div className="rule" />
             <p>Collection Development</p>
           </div>

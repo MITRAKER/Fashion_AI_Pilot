@@ -278,7 +278,7 @@ export const STAGES = [
 
 export const seedCollection: Collection = {
   id: 'SS27-CORE',
-  brand: 'Atelier Pilot',
+  brand: 'Two Rivers',
   season: 'Spring/Summer',
   year: 2027,
   market: 'US wholesale + DTC',

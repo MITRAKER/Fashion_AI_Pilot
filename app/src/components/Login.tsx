@@ -29,7 +29,7 @@ export function Login() {
                     gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)' }}>
         <div className="card" style={{ padding: 34 }}>
           <div className="brand" style={{ padding: 0, marginBottom: 26 }}>
-            <h1 style={{ fontSize: 34 }}>Atelier</h1>
+            <h1 style={{ fontSize: 34 }}>Fashion AI</h1>
             <div className="rule" />
             <p>Collection Development</p>
           </div>

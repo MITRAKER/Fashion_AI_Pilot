@@ -14,24 +14,31 @@ export function IntroSplash({ onEnter }: IntroSplashProps) {
   const audioRef = useRef<HTMLAudioElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
 
-  /* Autoplay music on mount */
+  /**
+   * Music is off until asked for, and it stops when this screen goes.
+   *
+   * The bug this replaces: the splash autoplayed on mount, and when autoplay was
+   * blocked it armed a document-wide click/keydown listener that started the
+   * music on the next interaction anywhere — so turning it off and then clicking
+   * something turned it back on. Worse, Enter force-played it and then unmounted
+   * this component a moment later. Removing an <audio loop> element from the DOM
+   * does not stop playback in Chrome, so it detached and played forever with no
+   * UI attached to it and no way to stop it short of closing the tab. That is
+   * why it kept coming back, and why it played while off screen.
+   *
+   * Nothing here starts audio on its own now. The only cleanup that matters is
+   * the one below.
+   */
   useEffect(() => {
     const a = audioRef.current
-    if (!a) return
-    a.volume = 0.7
-    const tryPlay = () => {
-      a.play().then(() => setIsPlayingAudio(true)).catch(() => {
-        /* browsers block autoplay until first interaction — retry on click */
-        const resume = () => {
-          a.play().then(() => setIsPlayingAudio(true)).catch(() => {})
-          document.removeEventListener('click', resume)
-          document.removeEventListener('keydown', resume)
-        }
-        document.addEventListener('click', resume, { once: true })
-        document.addEventListener('keydown', resume, { once: true })
-      })
+    if (a) a.volume = 0.7
+    return () => {
+      if (!a) return
+      a.pause()
+      a.currentTime = 0
+      a.src = ''          // detach the source so a detached element cannot resume
+      a.load()
     }
-    tryPlay()
   }, [])
 
   const toggleAudio = () => {
@@ -98,22 +105,22 @@ export function IntroSplash({ onEnter }: IntroSplashProps) {
         animation: 'fadeIn 1.2s ease-out'
       }}>
         <div style={{
-          fontFamily: "'Orbitron', var(--mono)", fontSize: 11, letterSpacing: '.32em', color: 'var(--gold, #d4af37)',
+          fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: '.32em', color: 'var(--gold, #d4af37)',
           textTransform: 'uppercase', marginBottom: 16,
           textShadow: '0 1px 8px rgba(0,0,0,0.5)'
         }}>
-          Spring / Summer 2027 Runway Experience
+          Spring / Summer 2027
         </div>
 
         <h1 style={{
-          fontFamily: "'Orbitron', sans-serif", fontSize: 52, fontWeight: 700,
+          fontFamily: 'var(--display)', fontSize: 52, fontWeight: 700,
           letterSpacing: '.06em', margin: '0 0 16px 0', textShadow: '0 2px 16px rgba(0,0,0,0.6)'
         }}>
-          Atelier Pilot
+          Fashion AI
         </h1>
 
         <p style={{
-          fontFamily: "'Exo 2', sans-serif", fontSize: 15, color: 'rgba(255,255,255,0.92)',
+          fontFamily: 'var(--body)', fontSize: 15, color: 'rgba(255,255,255,0.92)',
           lineHeight: 1.6, marginBottom: 36, fontWeight: 300,
           textShadow: '0 1px 8px rgba(0,0,0,0.5)'
         }}>
@@ -121,22 +128,19 @@ export function IntroSplash({ onEnter }: IntroSplashProps) {
         </p>
 
         <button
-          onClick={() => {
-            if (audioRef.current && !isPlayingAudio) {
-              audioRef.current.play().catch(console.error)
-            }
-            onEnter()
-          }}
+          // Entering must never start audio. This used to force-play and then
+          // unmount, which is what orphaned the looping element.
+          onClick={onEnter}
           className="btn gold"
           style={{
-            fontFamily: "'Orbitron', sans-serif",
+            fontFamily: 'var(--mono)',
             padding: '14px 42px', fontSize: 12, letterSpacing: '.14em', textTransform: 'uppercase',
             background: 'linear-gradient(135deg, #e6ca65 0%, #b8932b 100%)', color: '#0f0f12',
             border: 'none', borderRadius: 4, fontWeight: 600, cursor: 'pointer',
             boxShadow: '0 8px 30px rgba(212, 175, 55, 0.4)', transition: 'all 0.3s ease'
           }}
         >
-          Enter Runway Platform →
+          Enter →
         </button>
       </div>
     </div>

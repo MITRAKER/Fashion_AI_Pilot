@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Atelier — visual system (light)
+   Fashion AI — visual system (light)
    Direction taken from the RUSH "AI Fitting room" reference: soft neutral ground,
    white cards floating at generous radius, one saturated yellow reserved for the
    primary action, quiet hairline borders, small uppercase labels over larger values.
@@ -37,9 +37,15 @@
   --ai:          #4a53c4;
   --ai-bg:       rgba(74, 83, 196, 0.09);
 
-  --serif: 'Orbitron', 'Exo 2', 'Segoe UI', sans-serif;
-  --sans: 'Exo 2', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --mono: 'Space Mono', 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
+  /* The three faces from frontend/fashion_ai_wireframe.html. Orbitron and Exo 2
+     were here and were wrong for this — Orbitron is a sci-fi display face and
+     this is a fashion tool. --display/--body/--mono are aliased so the
+     wireframe's own token names work verbatim in anything ported across. */
+  --serif: 'Bodoni Moda', Georgia, serif;
+  --sans: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --mono: 'IBM Plex Mono', 'Cascadia Code', Consolas, monospace;
+  --display: var(--serif);
+  --body: var(--sans);
 
   --r-sm: 10px; --r: 16px; --r-lg: 22px;
   --shadow: 0 1px 2px rgba(16, 16, 20, .04), 0 14px 34px -16px rgba(16, 16, 20, .16);
@@ -50,7 +56,7 @@
 
 /* The base colour lives on <html>. If it sits on <body> it propagates to the page
    canvas and paints over the negative-z-index backdrop below. */
-html { background: #14100d; }
+html { background: var(--bg-2); }
 
 body {
   background: transparent;
@@ -61,60 +67,32 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* ---------- backdrop -----------------------------------------------------
-   The app floats on a blurred scene, as in the reference. Built from layered
-   gradients rather than a photograph: no external asset, no licensing question,
-   and it stays sharp at any viewport. Warm street bokeh — out-of-focus figures,
-   shopfront light, pavement.
-   ------------------------------------------------------------------------- */
-
-body::before {
-  content: '';
-  position: fixed; inset: -80px; z-index: -1;
-  background:
-    radial-gradient(340px 460px at 12% 74%, rgba(94, 58, 40, .95), transparent 62%),
-    radial-gradient(260px 400px at 27% 82%, rgba(163, 122, 84, .8), transparent 60%),
-    radial-gradient(300px 430px at 44% 78%, rgba(58, 46, 44, .9), transparent 62%),
-    radial-gradient(280px 420px at 62% 84%, rgba(140, 62, 48, .75), transparent 60%),
-    radial-gradient(320px 450px at 82% 76%, rgba(78, 66, 58, .9), transparent 62%),
-    radial-gradient(760px 440px at 50% 6%, rgba(240, 220, 190, .7), transparent 70%),
-    radial-gradient(440px 320px at 80% 16%, rgba(212, 172, 120, .55), transparent 68%),
-    radial-gradient(420px 320px at 8% 22%, rgba(196, 166, 128, .45), transparent 68%),
-    linear-gradient(180deg, #927a5e 0%, #6a5643 40%, #46372c 74%, #2c231c 100%);
-  filter: blur(46px) saturate(115%);
-  transform: scale(1.06);
-}
+/* The blurred warm backdrop is gone with the floating window — there is no
+   page showing around the app any more, so it only fought the paper white. */
 
 button { font: inherit; color: inherit; cursor: pointer; border: none; background: none; }
 input, select, textarea { font: inherit; color: inherit; }
 
 /* ---------- layout ------------------------------------------------------- */
 
-/* The floating window. Everything the product does happens inside this card. */
+/* Full bleed. The floating-window inset and its warm backdrop are gone — the
+   app is the page. */
 .app-frame {
-  /* Exactly the viewport, so the window never grows past it and scrolling happens
-     inside .main. The inset is the design: enough backdrop shows for the window to
-     read as floating, and it collapses to full-bleed on small screens. */
   height: 100vh;
-  padding: clamp(0px, 3vh, 42px) clamp(0px, 3vw, 54px);
-  display: grid; justify-items: center;
+  padding: 0;
+  display: grid; justify-items: stretch;
 }
-@media (max-width: 760px) { .app-frame { padding: 0; } }
 
 .app {
   display: grid; grid-template-columns: 264px 1fr;
-  width: 100%; max-width: 1560px; height: 100%; min-height: 0;
+  width: 100%; max-width: none; height: 100%; min-height: 0;
   background: var(--bg-2);
-  border-radius: 26px;
+  border-radius: 0;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, .5);
-  box-shadow:
-    0 2px 6px rgba(0, 0, 0, .18),
-    0 40px 90px -30px rgba(0, 0, 0, .55),
-    0 90px 140px -60px rgba(0, 0, 0, .5);
+  border: none;
 }
 @media (max-width: 760px) {
-  .app { grid-template-columns: 1fr; border-radius: 0; border: none; }
+  .app { grid-template-columns: 1fr; }
 }
 
 .sidebar {
