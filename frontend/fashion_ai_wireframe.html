@@ -142,6 +142,12 @@ tr:hover td{background:#fafafc}
 .tile.sel-ref{outline:3px solid var(--chalk);outline-offset:-3px}
 .tile .refmark{position:absolute;top:6px;right:6px;background:var(--chalk);color:#fff;font-family:var(--mono);font-size:9px;padding:2px 6px;display:none}
 .tile.sel-ref .refmark{display:block}
+.tile .setboard{position:absolute;top:6px;left:6px;display:none;background:var(--ink);color:#fff;border:0;font-family:var(--mono);font-size:8px;letter-spacing:.08em;text-transform:uppercase;padding:3px 7px;cursor:pointer}
+.tile:hover .setboard{display:block}
+.tile.is-board{outline:3px solid var(--ink);outline-offset:-3px}
+.tile.is-board::after{content:"BOARD";position:absolute;top:6px;right:6px;background:var(--ink);color:#fff;font-family:var(--mono);font-size:9px;letter-spacing:.08em;padding:2px 6px}
+.tile.is-board .refmark{top:26px}
+#stage3-hero{position:relative;height:190px;border:1px solid var(--line);margin-bottom:14px;background-size:cover;background-position:center}
 .vrail{display:flex;gap:14px;flex-wrap:wrap}
 .vcard{border:1px solid var(--line);background:#fff;padding:12px;width:210px}
 .vcard.current{border:1.5px solid var(--chalk)}
@@ -600,6 +606,9 @@ tr:hover td{background:#fafafc}
 
     <div class="card">
       <h3>Approved board &middot; v1 &middot; SEALED</h3>
+      <div id="stage3-hero" style="background:linear-gradient(130deg,#E8E0D0 30%,#cbb9a2 30% 55%,#8a8f98 55%)">
+        <span class="prov" id="stage3-hero-cap" style="position:absolute;bottom:0;left:0">HERO &middot; v1 board image &middot; no portal promotion yet &mdash; "Set as board" on a portal tile replaces this</span>
+      </div>
       <div class="board" id="board-v1">
         <div class="tile wide" style="background:linear-gradient(130deg,#E8E0D0 30%,#cbb9a2 30% 55%,#8a8f98 55%)"><span class="prov">AI-GENERATED &middot; kept by B. Osei &middot; prompt on file</span></div>
         <div class="tile" style="background:#E8E0D0"><span class="prov">COLOR &middot; BONE #E8E0D0</span></div>
@@ -778,22 +787,30 @@ CAL.order.forEach(code=>{
 
 /* mood board portal */
 function refToggle(t){t.classList.toggle('sel-ref');const n=document.querySelectorAll('#board-v2 .tile.sel-ref').length;document.getElementById('refcount').textContent=n+' reference tiles selected';}
-function portalUpload(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{const b=document.getElementById('board-v2');const t=document.createElement('div');t.className='tile';t.style.backgroundImage='url('+e.target.result+')';t.onclick=()=>refToggle(t);t.innerHTML='<span class="refmark">REF</span><span class="prov">UPLOADED &middot; designer-declared &middot; '+f.name.slice(0,18)+'</span>';b.appendChild(t);toast('Element added from your computer. Provenance chip attached: UPLOADED, rights designer-declared. (REF-002)');};r.readAsDataURL(f);}
-function portalSimTile(n){const b=document.getElementById('board-v2');const t=document.createElement('div');t.className='tile';t.style.background='linear-gradient(150deg,#E8E0D0 20%,#b9c6ee 20% 45%,#6b7a5a 45% 70%,#1F1F1F 70%)';t.onclick=()=>refToggle(t);t.innerHTML='<span class="refmark">REF</span><span class="prov">AI-GENERATED &middot; provider via config &middot; '+n+' refs &middot; prompt on file</span>';b.appendChild(t);}
+/* set-as-board promotion: one tile at a time becomes the working board's hero */
+function tileIdent(t){const p=t.querySelector('.prov');return p?p.textContent.trim():'untitled tile';}
+function attachSetBoard(t){if(t.querySelector('.setboard'))return;const b=document.createElement('button');b.className='setboard';b.textContent='Set as board';b.onclick=e=>{e.stopPropagation();setAsBoard(t);};t.appendChild(b);}
+function setAsBoard(t){document.querySelectorAll('#board-v2 .tile.is-board').forEach(x=>x.classList.remove('is-board'));t.classList.add('is-board');
+const h=document.getElementById('stage3-hero');if(h){h.style.background=t.style.background;h.style.backgroundImage=t.style.backgroundImage;h.style.backgroundSize='cover';h.style.backgroundPosition='center';const c=document.getElementById('stage3-hero-cap');if(c)c.textContent='BOARD \u00b7 promoted from portal v2 \u00b7 '+tileIdent(t);}
+toast('Set as board: "'+tileIdent(t)+'" is now the working board hero. Stage 3 "Complete" points here. (VER-001)');}
+document.querySelectorAll('#board-v2 .tile').forEach(attachSetBoard);
+function portalUpload(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{const b=document.getElementById('board-v2');const t=document.createElement('div');t.className='tile';t.style.backgroundImage='url('+e.target.result+')';t.onclick=()=>refToggle(t);t.innerHTML='<span class="refmark">REF</span><span class="prov">UPLOADED &middot; designer-declared &middot; '+f.name.slice(0,18)+'</span>';b.appendChild(t);attachSetBoard(t);toast('Element added from your computer. Provenance chip attached: UPLOADED, rights designer-declared. (REF-002)');};r.readAsDataURL(f);}
+function portalSimTile(n){const b=document.getElementById('board-v2');const t=document.createElement('div');t.className='tile';t.style.background='linear-gradient(150deg,#E8E0D0 20%,#b9c6ee 20% 45%,#6b7a5a 45% 70%,#1F1F1F 70%)';t.onclick=()=>refToggle(t);t.innerHTML='<span class="refmark">REF</span><span class="prov">AI-GENERATED &middot; provider via config &middot; '+n+' refs &middot; prompt on file</span>';b.appendChild(t);attachSetBoard(t);}
 async function portalGenerate(){const p=document.getElementById('genprompt').value.trim();const n=document.querySelectorAll('#board-v2 .tile.sel-ref').length;if(!p){toast('Write a prompt first - it travels with your selected reference tiles.');return;}
 /* Real endpoint first; any failure (503 = no key, or opened standalone with no server) falls back to the simulated tile. */
 try{
  const r=await fetch('/api/generate-image',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({prompt:p,referenceNote:n+' reference tiles selected'})});
  if(!r.ok)throw new Error('http '+r.status);
  const d=await r.json();
- const b=document.getElementById('board-v2');const t=document.createElement('div');t.className='tile';t.style.backgroundImage='url('+d.image+')';t.style.backgroundSize='cover';t.onclick=()=>refToggle(t);t.innerHTML='<span class="refmark">REF</span><span class="prov">AI-GENERATED &middot; '+(d.provenance&&d.provenance.model||'provider')+' &middot; '+n+' refs &middot; prompt on file</span>';b.appendChild(t);
+ const b=document.getElementById('board-v2');const t=document.createElement('div');t.className='tile';t.style.backgroundImage='url('+d.image+')';t.style.backgroundSize='cover';t.onclick=()=>refToggle(t);t.innerHTML='<span class="refmark">REF</span><span class="prov">AI-GENERATED &middot; '+(d.provenance&&d.provenance.model||'provider')+' &middot; '+n+' refs &middot; prompt on file</span>';b.appendChild(t);attachSetBoard(t);
  toast('Generated via '+(d.provenance&&d.provenance.model||'configured provider')+'. Prompt + '+n+' reference tiles on file. Tile enters as DRAFT, kept only if you keep it. (CRE-001, SKT-001)');
 }catch(e){
  portalSimTile(n);
  toast('provider not configured — simulated');
 }}
-function approveV2(){const w=document.getElementById('whyline').value.trim();if(!w){toast('The "why" line is required - two seasons from now, the archive is the reasoning history of the brand\'s eye.');return;}
-toast('v2 sealed with reason: "'+w+'" - routed to M. Chen for signature. On sign-off: one question follows - reset design gate, or continuity confirmed? Human judgment, logged. (VER-001, section 4.1)');}
+function approveV2(){const bt=document.querySelector('#board-v2 .tile.is-board');if(!bt){toast('Select a tile to set as the board first.');return;}
+const w=document.getElementById('whyline').value.trim();if(!w){toast('The "why" line is required - two seasons from now, the archive is the reasoning history of the brand\'s eye.');return;}
+toast('Approving '+tileIdent(bt)+' as the v2 board. Sealed with reason: "'+w+'" - routed to M. Chen for signature. On sign-off: one question follows - reset design gate, or continuity confirmed? Human judgment, logged. (VER-001, section 4.1)');}
 
 </script>
 </body>
