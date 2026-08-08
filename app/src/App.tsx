@@ -5,10 +5,16 @@ import { StyleRecord } from './components/StyleRecord'
 import { Governance } from './components/Governance'
 import { Login } from './components/Login'
 import { IntroSplash } from './components/IntroSplash'
+import { ConceptStudio } from './components/ConceptStudio'
+import { RunwayLink } from './components/RunwayLink'
 import { summarise } from '../shared/rules.ts'
 import { Badge } from './components/ui'
 
-type View = { page: 'collection' } | { page: 'style'; id: string } | { page: 'governance' }
+type View =
+  | { page: 'collection' }
+  | { page: 'style'; id: string }
+  | { page: 'governance' }
+  | { page: 'concept' }
 
 function Shell() {
   const { collection, user, preflight, loading, error, clearError, logout } = useStore()
@@ -69,12 +75,20 @@ function Shell() {
           <div className="nav-group">
             <div className="nav-label">Workspace</div>
             <button
+              className={`nav-item ${view.page === 'concept' ? 'active' : ''}`}
+              onClick={() => setView({ page: 'concept' })}
+            >
+              <span className="dot" style={{ background: 'var(--gold)' }} />
+              Concept Studio
+            </button>
+            <button
               className={`nav-item ${view.page === 'governance' ? 'active' : ''}`}
               onClick={() => setView({ page: 'governance' })}
             >
               <span className="dot" />
               Governance
             </button>
+            <RunwayLink />
           </div>
 
           <div style={{ marginTop: 'auto', padding: '0 8px' }}>
@@ -125,6 +139,7 @@ function Shell() {
               <b>{collection.brand}</b> / {collection.season} {collection.year}
               {view.page === 'style' && <> / <b>{view.id}</b></>}
               {view.page === 'governance' && <> / <b>Governance</b></>}
+              {view.page === 'concept' && <> / <b>Concept Studio</b></>}
             </div>
             <div className="spacer" />
             <Badge tone="gold">Pilot workspace</Badge>
@@ -136,6 +151,7 @@ function Shell() {
             {view.page === 'style' &&
               <StyleRecord styleId={view.id} onBack={() => setView({ page: 'collection' })} />}
             {view.page === 'governance' && <Governance />}
+            {view.page === 'concept' && <ConceptStudio />}
           </div>
         </main>
       </div>

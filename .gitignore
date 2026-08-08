@@ -31,3 +31,6 @@ showroom/node_modules/
 showroom/renders/
 showroom/dist/
 showroom/.npm-cache/
+
+# Vite dep cache
+.vite/

@@ -2,7 +2,8 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { randomUUID } from 'node:crypto'
 import {
   audit, createSession, dropSession, readAudit, readCollection, readCorrections,
-  readInvocations, readStyle, spendForStyle, userForToken, verifyPassword, type DB,
+  readInvocations, readProposals, readStyle, spendForStyle, userForToken, verifyPassword,
+  type DB,
 } from './db.ts'
 import { stubProvider, type DraftProvider } from './ai/provider.ts'
 import { runPreflight, summarise } from '../shared/rules.ts'
@@ -223,6 +224,7 @@ const ROUTES: [string, RegExp, Handler][] = [
       audit: readAudit(db),
       invocations: readInvocations(db),
       corrections: readCorrections(db),
+      proposals: readProposals(db),
       templates: readTemplates(db),
       preflight: Object.fromEntries(
         collection.styles.map(s => [s.id, preflight(db, s)])),
@@ -430,6 +432,7 @@ const ROUTES: [string, RegExp, Handler][] = [
     }
 
     const applied: string[] = []
+    const proposed: string[] = []
     const declined = [...result.declined]
 
     db.exec('BEGIN')
@@ -441,9 +444,27 @@ const ROUTES: [string, RegExp, Handler][] = [
         // path — a change to an approved value would need a proposed-change workflow,
         // which the pilot does not have yet, so the agent declines instead.
         if (existing && (existing.approval === 'Approved' || existing.approval === 'Human Edited')) {
+          // PRD §6: no silent overwrite — but refusing outright throws the
+          // suggestion away. Park it as a proposal for a human to rule on.
+          if (existing.value.trim() !== s.value.trim()) {
+            const dupe = db.prepare(
+              `SELECT id FROM proposals WHERE style_id = ? AND field_id = ? AND state = 'Open'`)
+              .get(style.id, existing.id)
+            if (!dupe) {
+              db.prepare(`INSERT INTO proposals
+                (id, style_id, field_id, field_label, current_value, proposed_value,
+                 rationale, source, created_by, created_at, state)
+                VALUES (?,?,?,?,?,?,?,?,?,?, 'Open')`)
+                .run(randomUUID(), style.id, existing.id, existing.label,
+                     existing.value, s.value, s.rationale,
+                     `${provider.name}/${provider.model}`,
+                     `${provider.name}/${provider.model}`, new Date().toISOString())
+              proposed.push(s.label)
+            }
+          }
           declined.push({
             label: s.label,
-            reason: `Already ${existing.approval.toLowerCase()} by a person. AI may not change an approved value.`,
+            reason: `Already ${existing.approval.toLowerCase()} by a person. AI may not change an approved value — raised as a proposed change instead.`,
           })
           continue
         }
@@ -485,7 +506,89 @@ const ROUTES: [string, RegExp, Handler][] = [
       db.exec('COMMIT')
     } catch (e) { db.exec('ROLLBACK'); throw e }
 
-    return { style: readStyle(db, style.id), result: { ...result, declined }, applied }
+    return {
+      style: readStyle(db, style.id), result: { ...result, declined },
+      applied, proposed, proposals: readProposals(db),
+    }
+  }],
+
+  // Raise a proposed change by hand (e.g. off the back of a factory correction).
+  ['POST', /^\/api\/styles\/([^/]+)\/proposals$/, ({ db, user, params, body }) => {
+    require_(user, EDIT_CRITICAL, 'raise proposed changes')
+    const style = mustStyle(db, params[0])
+    const field = style.fields.find(f => f.id === body?.fieldId)
+    if (!field) throw new HttpError(404, `No field ${body?.fieldId}`)
+    const value = String(body?.proposedValue ?? '').trim()
+    if (!value) throw new HttpError(400, 'A proposed value is required')
+
+    const id = randomUUID()
+    db.prepare(`INSERT INTO proposals
+      (id, style_id, field_id, field_label, current_value, proposed_value,
+       rationale, source, created_by, created_at, state)
+      VALUES (?,?,?,?,?,?,?,?,?,?, 'Open')`)
+      .run(id, style.id, field.id, field.label, field.value, value,
+           String(body?.rationale ?? ''), String(body?.source ?? 'manual'),
+           user!.name, new Date().toISOString())
+    audit(db, {
+      actor: user!.name, action: 'Proposed change raised',
+      target: `${style.id} · ${field.label}`, from: field.value || '(empty)', to: value,
+    })
+    return { proposals: readProposals(db), style: readStyle(db, style.id) }
+  }],
+
+  // Accept — applies the value and creates a new version. Never edits in place.
+  ['POST', /^\/api\/styles\/([^/]+)\/proposals\/([^/]+)\/accept$/, ({ db, user, params, body }) => {
+    const [styleId, pid] = params
+    require_(user, APPROVE, 'accept proposed changes')
+    const style = mustStyle(db, styleId)
+    const p = readProposals(db).find(x => x.id === pid && x.styleId === styleId)
+    if (!p) throw new HttpError(404, `No proposal ${pid}`)
+    if (p.state !== 'Open') throw new HttpError(409, `Proposal is already ${p.state.toLowerCase()}`)
+
+    db.exec('BEGIN')
+    try {
+      // Accepting an approved pack's value is a change after approval, so the
+      // version bumps and the technical gate reopens (PRD §4.1 rule 4).
+      bumpIfApproved(db, style, user!.name, `Accepted proposed change to ${p.fieldLabel}`)
+      db.prepare(`UPDATE style_fields SET value = ?, approval = 'Human Edited', source = 'human',
+                  ai_involved = 0, created_by = ?, created_at = ?, note = ?
+                  WHERE style_id = ? AND id = ?`)
+        .run(p.proposedValue, user!.name, new Date().toISOString(),
+             `Accepted proposal from ${p.source}`, styleId, p.fieldId)
+      if (p.fieldLabel === 'Base size') {
+        db.prepare('UPDATE styles SET base_size = ? WHERE id = ?').run(p.proposedValue, styleId)
+      }
+      db.prepare(`UPDATE proposals SET state = 'Accepted', decided_by = ?, decided_at = ?,
+                  decision_reason = ? WHERE id = ?`)
+        .run(user!.name, new Date().toISOString(), body?.reason ?? null, pid)
+      audit(db, {
+        actor: user!.name, action: 'Proposed change accepted',
+        target: `${styleId} · ${p.fieldLabel}`, from: p.currentValue || '(empty)',
+        to: p.proposedValue, reason: p.rationale,
+      })
+      db.exec('COMMIT')
+    } catch (e) { db.exec('ROLLBACK'); throw e }
+
+    return { style: readStyle(db, styleId), proposals: readProposals(db) }
+  }],
+
+  // Dismiss — the approved value is untouched; the decision is recorded.
+  ['POST', /^\/api\/styles\/([^/]+)\/proposals\/([^/]+)\/dismiss$/, ({ db, user, params, body }) => {
+    const [styleId, pid] = params
+    require_(user, APPROVE, 'dismiss proposed changes')
+    mustStyle(db, styleId)
+    const p = readProposals(db).find(x => x.id === pid && x.styleId === styleId)
+    if (!p) throw new HttpError(404, `No proposal ${pid}`)
+    if (p.state !== 'Open') throw new HttpError(409, `Proposal is already ${p.state.toLowerCase()}`)
+
+    db.prepare(`UPDATE proposals SET state = 'Dismissed', decided_by = ?, decided_at = ?,
+                decision_reason = ? WHERE id = ?`)
+      .run(user!.name, new Date().toISOString(), body?.reason ?? null, pid)
+    audit(db, {
+      actor: user!.name, action: 'Proposed change dismissed',
+      target: `${styleId} · ${p.fieldLabel}`, reason: body?.reason ?? undefined,
+    })
+    return { style: readStyle(db, styleId), proposals: readProposals(db) }
   }],
 
   // D-01: a technical designer signs off the category schema.

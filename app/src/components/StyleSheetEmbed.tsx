@@ -1,391 +1,324 @@
-import { useEffect, useState } from 'react'
-import { StyleSheet3DCanvas } from './StyleSheet3DCanvas'
-import type { Style } from '../../shared/types.ts'
+import { useEffect, useRef, useState } from 'react'
+import { findFabric } from '@engine/fabric-engine.js'
+import { hexForName } from '@engine/palette.js'
+import { defaultSpec } from '@engine/garment-spec.js'
+import { createBodyPreview, type BodyPreview } from '@engine/board-3d.js'
+import { ApprovalBadge } from './ui'
+import { cropToGarment } from '../crop'
+import type { PackField, Style, TrimRow } from '../../shared/types.ts'
+
+/**
+ * The style sheet, read off the style record.
+ *
+ * Everything here was hardcoded once — "Silk faille 19mm" was a string literal,
+ * the trims were five invented rows, and the form was a second copy of the
+ * dress geometry that had drifted from the real one. All three are now the
+ * record's own data and the shared engine.
+ *
+ * The rule that shapes this file: a field with no value is shown as missing.
+ * It is never filled with something plausible, because a plausible value on a
+ * style sheet is indistinguishable from a decided one.
+ */
+
+const VIEWS = [
+  { key: 'front', label: 'Front', az: 0 },
+  { key: 'side', label: 'Side', az: Math.PI / 2 },
+  { key: 'back', label: 'Back', az: Math.PI },
+] as const
+
+const Missing = ({ what = 'Missing' }: { what?: string }) =>
+  <span className="ss-missing">{what}</span>
+
+/** One label/value row, carrying the provenance the record holds for it. */
+function Row({ f }: { f: PackField }) {
+  const empty = !f.value.trim()
+  // An empty Unresolved field would otherwise print "Unresolved" twice — once
+  // as the value marker, once as the approval badge. Say it once.
+  const dupe = empty && f.approval === 'Unresolved'
+  return (
+    <div className={`ss-row${empty ? ' empty' : ''}`}>
+      <span className="ss-k">{f.label}</span>
+      <span className="ss-v">
+        {empty ? <Missing what={f.approval === 'Unresolved' ? 'Unresolved' : 'Missing'} />
+               : <>{f.value}{f.unit ? ` ${f.unit}` : ''}</>}
+      </span>
+      {!dupe && <ApprovalBadge v={f.approval} />}
+    </div>
+  )
+}
+
+function Section({ title, fields, note }: { title: string; fields: PackField[]; note?: string }) {
+  if (!fields.length) return null
+  return (
+    <div className="ss-sec">
+      <h3>{title}</h3>
+      {fields.map(f => <Row key={f.id} f={f} />)}
+      {note && <p className="ss-note">{note}</p>}
+    </div>
+  )
+}
 
 export function StyleSheetEmbed({ style }: { style: Style }) {
-  const styleId = style.id
-  const parsed = style.parsedSketch
-  const flatSketch = style.assets.flatSketch
-  const presentation3D = Boolean(flatSketch)
-  const [viewMode, setViewMode] = useState<'front' | 'side' | 'back'>('front')
-  const [flatSketchError, setFlatSketchError] = useState(false)
+  const [view, setView] = useState<typeof VIEWS[number]['key']>('front')
+  const mountRef = useRef<HTMLDivElement | null>(null)
+  const previewRef = useRef<BodyPreview | null>(null)
+  // One photograph per view, so Front/Side/Back drives both panes.
+  const [shots, setShots] = useState<Record<string, string>>({})
+  const [shotErr, setShotErr] = useState<string | null>(null)
+  const [shotBusy, setShotBusy] = useState<string | null>(null)
+  // Held constant across the three so the model, lighting and cloth stay as
+  // close as the generator can manage between separate renders.
+  const seedRef = useRef(Math.floor(Math.random() * 1e6))
+  const shot = shots[view] ?? null
+
+  const by = (section: string) => style.fields.filter(f => f.section === section)
+
+  // The form wears this style's own fabric and its first colourway — not a
+  // default cloth in a placeholder grey.
+  const fabricField = style.fields.find(f => f.section === 'Fabric' && /main fabric/i.test(f.label))
+  const matched = findFabric(fabricField?.value)
+  const colour = hexForName(style.colorways[0])
 
   useEffect(() => {
-    setFlatSketchError(false)
-  }, [styleId, flatSketch])
+    if (!mountRef.current || !matched) return
+    if (!previewRef.current) previewRef.current = createBodyPreview(mountRef.current)
+    const p = previewRef.current
+    const spec = defaultSpec()
+    const fab = spec.components.find(c => c.id === 'fabric')
+    if (fab) {
+      fab.name = matched.name
+      if (matched.drape) { fab.bend = matched.drape.bend; fab.weight = Math.abs(matched.drape.gravity) }
+    }
+    p.setSpec(spec)
+    // Undyed calico is the honest stand-in when the colourway name is not in
+    // the vocabulary — it reads as a toile, which is what an unresolved
+    // colourway actually is.
+    p.dress(matched, colour?.hex ?? '#d8d2c4', 'solid')
+  }, [matched, colour?.hex])
+
+  useEffect(() => {
+    previewRef.current?.setView(VIEWS.find(v => v.key === view)!.az)
+  }, [view])
+
+  const trims: TrimRow[] = style.trims
+
+  /**
+   * The rendered photograph, beside the simulated form.
+   *
+   * The prompt is built from THIS RECORD — its fabric field, its colourway, its
+   * construction rows — not from a concept analysis. So the render is of the
+   * style as specified, and a render that disagrees with the form beside it is
+   * showing you a real disagreement between the spec and how it reads.
+   */
+  const render = async (which: typeof VIEWS[number]['key']) => {
+    setShotBusy(which); setShotErr(null)
+    try {
+      const r = await fetch('/plate', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          provider: 'pollinations',
+          view: which,
+          seed: seedRef.current,
+          sourceName: style.name,
+          fabric: matched ?? { name: fabricField?.value ?? 'unspecified cloth', hand: '', behaviour: '' },
+          palette: colour ? [{ name: colour.name, hex: colour.hex }] : [],
+          details: by('Construction')
+            .filter(f => f.value.trim())
+            .slice(0, 4)
+            .map(f => ({ name: f.label, construction: f.value })),
+          spec: {
+            garmentType: style.category.split('—')[0].trim().toLowerCase().replace(/\s+/g, '_'),
+            components: [],
+          },
+        }),
+      })
+      const j = await r.json()
+      if (j.ok) {
+        const cropped = await cropToGarment(`data:${j.mime};base64,${j.data}`, colour?.hex)
+        setShots(s => ({ ...s, [which]: cropped }))
+      } else setShotErr(j.error ?? `Failed (${r.status}).`)
+    } catch (e: any) {
+      setShotErr(String(e?.message ?? e))
+    } finally { setShotBusy(null) }
+  }
+
+  /** All three angles, in sequence — the free generator is one at a time. */
+  const renderAll = async () => {
+    for (const v of VIEWS) await render(v.key)
+  }
 
   return (
-    <div style={{
-      fontFamily: "'Manrope', sans-serif", background: '#F5F5F7', color: '#0E0D0C',
-      padding: '24px 28px 48px', borderRadius: 6, margin: '16px 0 32px', border: '1px solid #DDDDE1',
-      boxShadow: '0 4px 24px rgba(0,0,0,0.06)'
-    }}>
-      {/* Header */}
-      <div style={{
-        display: 'flex', alignItems: 'flex-end', gap: 24, borderBottom: '2px solid #0E0D0C',
-        paddingBottom: 14, marginBottom: 20
-      }}>
-        <div style={{ fontFamily: "'Bodoni Moda', serif", fontSize: 26, letterSpacing: '.01em' }}>
+    <div className="ss">
+      <header className="ss-head">
+        <div className="ss-brand">
           Two Rivers
-          <small style={{
-            display: 'block', fontFamily: "'IBM Plex Mono', monospace", fontSize: 10,
-            letterSpacing: '.18em', color: '#4A4844', textTransform: 'uppercase', marginTop: 2
-          }}>
-            Fashion AI · collection development
-          </small>
+          <small>Fashion AI · collection development</small>
         </div>
-        <div style={{ flex: 1 }} />
-        <div style={{
-          fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, letterSpacing: '.2em',
-          textTransform: 'uppercase', color: '#4A4844'
-        }}>
-          Style Sheet
+        <div className="ss-title">Style Sheet</div>
+        <div className="ss-meta">
+          <div>STYLE <b>{style.id}</b> &nbsp; SEASON <b>
+            {by('Cover').find(f => /season/i.test(f.label))?.value || <Missing />}</b></div>
+          <div>BASE SIZE <b>{style.baseSize ?? <Missing what="Not declared" />}</b> &nbsp;
+            UNITS <b>{style.units}</b> &nbsp; V<b>{style.version}</b></div>
         </div>
-        <div style={{
-          fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: '#4A4844', lineHeight: 1.9, textAlign: 'right'
-        }}>
-          <div>STYLE <b style={{ color: '#0E0D0C', fontWeight: 500 }}>{styleId}</b> &nbsp; SEASON <b style={{ color: '#0E0D0C', fontWeight: 500 }}>SS27</b></div>
-          <div>BASE SIZE <b style={{ color: '#0E0D0C', fontWeight: 500 }}>38</b> &nbsp; UNITS <b style={{ color: '#0E0D0C', fontWeight: 500 }}>cm</b> &nbsp; V<b style={{ color: '#0E0D0C', fontWeight: 500 }}>4</b></div>
-        </div>
-      </div>
+      </header>
 
-      {/* 3-Column Grid */}
-      <div style={{
-        display: 'grid', gridTemplateColumns: '250px minmax(0, 1fr) 300px', gap: 20
-      }}>
-        {/* LEFT COLUMN */}
-        <div style={{ display: 'grid', gap: 20, alignContent: 'start' }}>
-          <div style={{ background: '#FFFFFF', border: '1px solid #DDDDE1', borderRadius: 4, padding: '16px 18px' }}>
-            <h3 style={{
-              fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: '.16em',
-              textTransform: 'uppercase', color: '#4A4844', paddingBottom: 9, marginBottom: 11, borderBottom: '1px solid #DDDDE1'
-            }}>
-              Fabric
-            </h3>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '7px 0', fontSize: 13, borderBottom: '1px dotted #DDDDE1' }}>
-              <span style={{ color: '#4A4844' }}>Shell</span>
-              <span style={{ fontWeight: 500 }}>Silk faille 19mm</span>
+        <div className="ss-stage-wrap">
+        <div className="ss-stage-h">
+          <span>Garment on form</span>
+          {VIEWS.map(v => (
+            <button key={v.key} className={`btn sm${view === v.key ? ' dark' : ''}`}
+              onClick={() => setView(v.key)}>
+              {v.label}
+              {/* A dot means that angle has a photograph; the form always has all three. */}
+              {shots[v.key] && <i className="ss-dot" />}
+            </button>
+          ))}
+          <button className="btn sm gold" onClick={() => void render(view)} disabled={!!shotBusy}>
+            {shotBusy === view ? 'Rendering…' : shot ? `Redo ${view}` : `Render ${view}`}
+          </button>
+          <button className="btn sm" onClick={() => void renderAll()} disabled={!!shotBusy}>
+            {shotBusy ? `Rendering ${shotBusy}…` : 'All three angles'}
+          </button>
+        </div>
+        {matched ? (
+          <div className="ss-two">
+            <div className="ss-stage" ref={mountRef} />
+            {/* The render sits beside the form, not instead of it. The form is
+                the measured drape of the cloth on record; the photograph is how
+                that spec reads. Disagreement between them is information. */}
+            <div className="ss-shot">
+              {shot
+                ? <img src={shot} alt={`${style.name} rendered`} />
+                : (
+                  <div className="ss-shot-none">
+                    {shotBusy === view
+                      ? <span className="cs-spin">Rendering the {view} view…</span>
+                      : shotErr
+                        ? <><b>Not rendered.</b><span>{shotErr}</span></>
+                        : <span>No photograph for the {view} view yet.</span>}
+                  </div>
+                )}
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '7px 0', fontSize: 13, borderBottom: '1px dotted #DDDDE1' }}>
-              <span style={{ color: '#4A4844' }}>Lining</span>
-              <span style={{ fontWeight: 500 }}>Cupro twill</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '7px 0', fontSize: 13 }}>
-              <span style={{ color: '#4A4844' }}>Interlining</span>
-              <span style={{ fontWeight: 500 }}>Silk organza</span>
-            </div>
-            <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10.5, color: '#4A4844', lineHeight: 1.6, marginTop: 9 }}>
-              Name only. Swatches are not carried on the sheet — gathering them and putting a physical sample in every hand is a person's job, recorded below.
+          </div>
+        ) : (
+          <div className="ss-stage ss-stage-none">
+            <p><b>No simulated form.</b></p>
+            <p>
+              {fabricField?.value
+                ? <>“{fabricField.value}” is not in the drape catalogue, so there is no
+                    measured bend or weight to simulate.</>
+                : <>This style has no main fabric on record.</>}
+            </p>
+            <p className="ss-note">
+              The sheet shows a form only when the cloth's behaviour is known. A default
+              cloth would draw a drape this style has no basis for.
             </p>
           </div>
-
-          <div style={{ background: '#FFFFFF', border: '1px solid #DDDDE1', borderRadius: 4, padding: '16px 18px' }}>
-            <h3 style={{
-              fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: '.16em',
-              textTransform: 'uppercase', color: '#4A4844', paddingBottom: 9, marginBottom: 11, borderBottom: '1px solid #DDDDE1'
-            }}>
-              Swatch handling
-            </h3>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '7px 0', fontSize: 13, borderBottom: '1px dotted #DDDDE1' }}>
-              <span style={{ color: '#4A4844' }}>Gathered by</span>
-              <span style={{ fontWeight: 500 }}>N. Walker</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '7px 0', fontSize: 13, borderBottom: '1px dotted #DDDDE1' }}>
-              <span style={{ color: '#4A4844' }}>Samples issued</span>
-              <span style={{ fontWeight: 500 }}>4 of 4</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '7px 0', fontSize: 13 }}>
-              <span style={{ color: '#4A4844' }}>Embroidery sample</span>
-              <span style={{
-                display: 'inline-block', fontFamily: "'IBM Plex Mono', monospace", fontSize: 9.5, letterSpacing: '.12em',
-                textTransform: 'uppercase', padding: '2px 7px', borderRadius: 2, background: '#E6F2EC', color: '#2E7D5B'
-              }}>
-                In hand
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* CENTRE: THE MODEL STAGE */}
-        <div style={{
-          background: '#FFFFFF', border: '1px solid #DDDDE1', borderRadius: 4, overflow: 'hidden',
-          display: 'flex', flexDirection: 'column', minHeight: 640
-        }}>
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderBottom: '1px solid #DDDDE1'
-          }}>
-            <span style={{
-              fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: '.16em',
-              textTransform: 'uppercase', color: '#4A4844', marginRight: 'auto'
-            }}>
-              {presentation3D ? 'Presentation 3D' : 'Garment on form'}
+        )}
+        <div className="ss-stage-f">
+          <span>SIDE VIEW DISCLOSES CLOSURE PLACEMENT</span>
+          {matched && (
+            <span>
+              SIMULATED AS {matched.name.toUpperCase()}
+              {matched.matchedOn === 'weave' && ' — NEAREST CATALOGUE ENTRY, NOT THIS FIBRE'}
+              {colour
+                ? ` IN ${colour.name.toUpperCase()}${colour.matchedOn === 'word' ? ' (NEAREST TERM)' : ''}`
+                : ' — COLOURWAY NOT RESOLVED, SHOWN AS TOILE'}
+              {' · NOT DIMENSIONALLY VERIFIED'}
             </span>
-            {presentation3D && (
-              <span style={{
-                fontFamily: "'IBM Plex Mono', monospace", fontSize: 9.5, letterSpacing: '.14em',
-                textTransform: 'uppercase', color: '#8A5B2A', background: '#F6EBDD', border: '1px solid #E8D4B6',
-                borderRadius: 999, padding: '4px 8px',
-              }}>
-                Draft
-              </span>
-            )}
-            {(['front', 'side', 'back'] as const).map(m => (
-              <button
-                key={m}
-                onClick={() => setViewMode(m)}
-                style={{
-                  fontFamily: "'IBM Plex Mono', monospace", fontSize: 10.5, letterSpacing: '.12em',
-                  textTransform: 'uppercase', padding: '7px 14px', border: '1px solid #DDDDE1',
-                  borderRadius: 3, cursor: 'pointer',
-                  background: viewMode === m ? '#0E0D0C' : '#FFFFFF',
-                  color: viewMode === m ? '#FFFFFF' : '#4A4844',
-                  borderColor: viewMode === m ? '#0E0D0C' : '#DDDDE1'
-                }}
-              >
-                {m.charAt(0).toUpperCase() + m.slice(1)}
-              </button>
-            ))}
-          </div>
-
-          <div style={{ flex: 1, position: 'relative', background: 'linear-gradient(180deg, #FAFAFB, #EFEFF2)', minHeight: 520 }}>
-            <StyleSheet3DCanvas viewMode={viewMode} presentation={presentation3D} style={style} />
-          </div>
-
-          <div style={{
-            padding: '9px 14px', borderTop: '1px solid #DDDDE1', fontFamily: "'IBM Plex Mono', monospace",
-            fontSize: 10, color: '#4A4844', display: 'flex', gap: 16, flexWrap: 'wrap'
-          }}>
-            <span>SIDE VIEW DISCLOSES CLOSURE PLACEMENT</span>
-            <span>PRESENTATION ONLY · NOT A PRODUCTION PATTERN OR MEASUREMENT SOURCE</span>
-          </div>
-        </div>
-
-        {/* RIGHT COLUMN */}
-        <div style={{ display: 'grid', gap: 20, alignContent: 'start' }}>
-          {flatSketch && !flatSketchError && (
-            <section style={{ background: '#FFFFFF', border: '1px solid #DDDDE1', borderRadius: 4, padding: '16px 18px' }}>
-              <h3 style={{
-                fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: '.16em',
-                textTransform: 'uppercase', color: '#4A4844', paddingBottom: 9, marginBottom: 11, borderBottom: '1px solid #DDDDE1'
-              }}>
-                Flat Sketch
-              </h3>
-              <img
-                src={flatSketch}
-                alt="Flat sketch"
-                onError={() => setFlatSketchError(true)}
-                style={{ width: '100%', maxWidth: '100%', borderRadius: 4, border: '1px solid #DDDDE1', display: 'block' }}
-              />
-            </section>
           )}
-
-          {flatSketchError && (
-            <section style={{ background: '#FFFFFF', border: '1px solid #DDDDE1', borderRadius: 4, padding: '16px 18px' }}>
-              <h3 style={{
-                fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: '.16em',
-                textTransform: 'uppercase', color: '#4A4844', paddingBottom: 9, marginBottom: 11, borderBottom: '1px solid #DDDDE1'
-              }}>
-                Flat Sketch
-              </h3>
-              <p style={{ margin: 0, fontSize: 11.5, color: '#4A4844', lineHeight: 1.5 }}>
-                Flat sketch not available in this demo. Image file is missing or not yet uploaded.
-              </p>
-            </section>
+          {shot && (
+            <span>
+              PHOTOGRAPH IS MACHINE-GENERATED · NOT A FACTORY INPUT · CROPPED ABOVE THE
+              NECKLINE · EACH ANGLE IS A SEPARATE GENERATION, NOT ONE GARMENT TURNED —
+              THE FORM BESIDE IT IS
+            </span>
           )}
-
-          <div style={{ background: '#FFFFFF', border: '1px solid #DDDDE1', borderRadius: 4, padding: '16px 18px' }}>
-            <h3 style={{
-              fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: '.16em',
-              textTransform: 'uppercase', color: '#4A4844', paddingBottom: 9, marginBottom: 11, borderBottom: '1px solid #DDDDE1'
-            }}>
-              Embroidery · external
-            </h3>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '7px 0', fontSize: 13, borderBottom: '1px dotted #DDDDE1' }}>
-              <span style={{ color: '#4A4844' }}>Placement</span>
-              <span style={{ fontWeight: 500 }}>CF panel, cuff</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '7px 0', fontSize: 13, borderBottom: '1px dotted #DDDDE1' }}>
-              <span style={{ color: '#4A4844' }}>Supplier</span>
-              <span style={{ fontWeight: 500 }}>Atelier Lesage</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '7px 0', fontSize: 13 }}>
-              <span style={{ color: '#4A4844' }}>Est. cost</span>
-              <span style={{ fontWeight: 500 }}>$42.00 / gmt</span>
-            </div>
-            <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10.5, color: '#4A4844', lineHeight: 1.6, marginTop: 9 }}>
-              Goes outside the organisation, so the supplier and an estimated cost sit on the style sheet itself.{' '}
-              <span style={{
-                display: 'inline-block', fontFamily: "'IBM Plex Mono', monospace", fontSize: 9.5, letterSpacing: '.12em',
-                textTransform: 'uppercase', padding: '2px 7px', borderRadius: 2, background: '#E7ECFA', color: '#3757B8'
-              }}>
-                Typed by a person
-              </span>
-            </p>
-          </div>
-
-          <div style={{ background: '#FFFFFF', border: '1px solid #DDDDE1', borderRadius: 4, padding: '16px 18px' }}>
-            <h3 style={{
-              fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: '.16em',
-              textTransform: 'uppercase', color: '#4A4844', paddingBottom: 9, marginBottom: 11, borderBottom: '1px solid #DDDDE1'
-            }}>
-              Closure
-            </h3>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '7px 0', fontSize: 13, borderBottom: '1px dotted #DDDDE1' }}>
-              <span style={{ color: '#4A4844' }}>Type</span>
-              <span style={{ fontWeight: 500 }}>Invisible zip</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '7px 0', fontSize: 13 }}>
-              <span style={{ color: '#4A4844' }}>Placement</span>
-              <span style={{ fontWeight: 500 }}>Left side seam</span>
-            </div>
-            <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10.5, color: '#4A4844', lineHeight: 1.6, marginTop: 9 }}>
-              Not centre back. This is why the sheet has a side view.
-            </p>
-          </div>
         </div>
       </div>
 
-      {/* TRIMS TABLE */}
-      <div style={{ background: '#FFFFFF', border: '1px solid #DDDDE1', borderRadius: 4, padding: '16px 18px', marginTop: 20 }}>
-        <h3 style={{
-          fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: '.16em',
-          textTransform: 'uppercase', color: '#4A4844', paddingBottom: 9, marginBottom: 11, borderBottom: '1px solid #DDDDE1'
-        }}>
-          Trims · size, type and colour are specified, never implied
-        </h3>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
-          <thead>
-            <tr>
-              <th style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9.5, letterSpacing: '.14em', textTransform: 'uppercase', color: '#4A4844', textAlign: 'left', padding: '8px 10px', borderBottom: '1px solid #DDDDE1' }}>Item</th>
-              <th style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9.5, letterSpacing: '.14em', textTransform: 'uppercase', color: '#4A4844', textAlign: 'left', padding: '8px 10px', borderBottom: '1px solid #DDDDE1' }}>Type</th>
-              <th style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9.5, letterSpacing: '.14em', textTransform: 'uppercase', color: '#4A4844', textAlign: 'left', padding: '8px 10px', borderBottom: '1px solid #DDDDE1' }}>Size</th>
-              <th style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9.5, letterSpacing: '.14em', textTransform: 'uppercase', color: '#4A4844', textAlign: 'left', padding: '8px 10px', borderBottom: '1px solid #DDDDE1' }}>Colour</th>
-              <th style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9.5, letterSpacing: '.14em', textTransform: 'uppercase', color: '#4A4844', textAlign: 'left', padding: '8px 10px', borderBottom: '1px solid #DDDDE1' }}>Placement</th>
-              <th style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9.5, letterSpacing: '.14em', textTransform: 'uppercase', color: '#4A4844', textAlign: 'left', padding: '8px 10px', borderBottom: '1px solid #DDDDE1' }}>Supplier</th>
-              <th style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9.5, letterSpacing: '.14em', textTransform: 'uppercase', color: '#4A4844', textAlign: 'right', padding: '8px 10px', borderBottom: '1px solid #DDDDE1' }}>Est. cost</th>
-              <th style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9.5, letterSpacing: '.14em', textTransform: 'uppercase', color: '#4A4844', textAlign: 'left', padding: '8px 10px', borderBottom: '1px solid #DDDDE1' }}>Source</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td style={{ padding: '9px 10px', borderBottom: '1px solid #DDDDE1' }}>Sequin</td>
-              <td style={{ padding: '9px 10px', borderBottom: '1px solid #DDDDE1' }}>Cup</td>
-              <td style={{ padding: '9px 10px', borderBottom: '1px solid #DDDDE1', fontFamily: "'IBM Plex Mono', monospace", textAlign: 'right' }}>5 mm</td>
-              <td style={{ padding: '9px 10px', borderBottom: '1px solid #DDDDE1' }}>Gold</td>
-              <td style={{ padding: '9px 10px', borderBottom: '1px solid #DDDDE1' }}>CF panel</td>
-              <td style={{ padding: '9px 10px', borderBottom: '1px solid #DDDDE1' }}>Atelier Lesage</td>
-              <td style={{ padding: '9px 10px', borderBottom: '1px solid #DDDDE1', fontFamily: "'IBM Plex Mono', monospace", textAlign: 'right' }}>—</td>
-              <td style={{ padding: '9px 10px', borderBottom: '1px solid #DDDDE1' }}>
-                <span style={{ display: 'inline-block', fontFamily: "'IBM Plex Mono', monospace", fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', padding: '2px 7px', borderRadius: 2, background: '#E7ECFA', color: '#3757B8' }}>Typed</span>
-              </td>
-            </tr>
-            <tr>
-              <td style={{ padding: '9px 10px', borderBottom: '1px solid #DDDDE1' }}>Sequin</td>
-              <td style={{ padding: '9px 10px', borderBottom: '1px solid #DDDDE1' }}>Cup</td>
-              <td style={{ padding: '9px 10px', borderBottom: '1px solid #DDDDE1', fontFamily: "'IBM Plex Mono', monospace", textAlign: 'right' }}>4 mm</td>
-              <td style={{ padding: '9px 10px', borderBottom: '1px solid #DDDDE1' }}>Purple</td>
-              <td style={{ padding: '9px 10px', borderBottom: '1px solid #DDDDE1' }}>CF panel, shadow</td>
-              <td style={{ padding: '9px 10px', borderBottom: '1px solid #DDDDE1' }}>Atelier Lesage</td>
-              <td style={{ padding: '9px 10px', borderBottom: '1px solid #DDDDE1', fontFamily: "'IBM Plex Mono', monospace", textAlign: 'right' }}>—</td>
-              <td style={{ padding: '9px 10px', borderBottom: '1px solid #DDDDE1' }}>
-                <span style={{ display: 'inline-block', fontFamily: "'IBM Plex Mono', monospace", fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', padding: '2px 7px', borderRadius: 2, background: '#E7ECFA', color: '#3757B8' }}>Typed</span>
-              </td>
-            </tr>
-            <tr>
-              <td style={{ padding: '9px 10px', borderBottom: '1px solid #DDDDE1' }}>Sequin</td>
-              <td style={{ padding: '9px 10px', borderBottom: '1px solid #DDDDE1' }}>Cup</td>
-              <td style={{ padding: '9px 10px', borderBottom: '1px solid #DDDDE1', fontFamily: "'IBM Plex Mono', monospace", textAlign: 'right' }}>6 mm</td>
-              <td style={{ padding: '9px 10px', borderBottom: '1px solid #DDDDE1' }}>Gold</td>
-              <td style={{ padding: '9px 10px', borderBottom: '1px solid #DDDDE1' }}>Cuff border</td>
-              <td style={{ padding: '9px 10px', borderBottom: '1px solid #DDDDE1' }}>Atelier Lesage</td>
-              <td style={{ padding: '9px 10px', borderBottom: '1px solid #DDDDE1', fontFamily: "'IBM Plex Mono', monospace", textAlign: 'right' }}>—</td>
-              <td style={{ padding: '9px 10px', borderBottom: '1px solid #DDDDE1' }}>
-                <span style={{ display: 'inline-block', fontFamily: "'IBM Plex Mono', monospace", fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', padding: '2px 7px', borderRadius: 2, background: '#E7ECFA', color: '#3757B8' }}>Typed</span>
-              </td>
-            </tr>
-            <tr>
-              <td style={{ padding: '9px 10px', borderBottom: '1px solid #DDDDE1' }}>Thread</td>
-              <td style={{ padding: '9px 10px', borderBottom: '1px solid #DDDDE1' }}>Silk, Tkt 50</td>
-              <td style={{ padding: '9px 10px', borderBottom: '1px solid #DDDDE1', fontFamily: "'IBM Plex Mono', monospace", textAlign: 'right' }}>—</td>
-              <td style={{ padding: '9px 10px', borderBottom: '1px solid #DDDDE1' }}>Bone</td>
-              <td style={{ padding: '9px 10px', borderBottom: '1px solid #DDDDE1' }}>All construction</td>
-              <td style={{ padding: '9px 10px', borderBottom: '1px solid #DDDDE1' }}>Au Ver à Soie</td>
-              <td style={{ padding: '9px 10px', borderBottom: '1px solid #DDDDE1', fontFamily: "'IBM Plex Mono', monospace", textAlign: 'right' }}>—</td>
-              <td style={{ padding: '9px 10px', borderBottom: '1px solid #DDDDE1' }}>
-                <span style={{ display: 'inline-block', fontFamily: "'IBM Plex Mono', monospace", fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', padding: '2px 7px', borderRadius: 2, background: '#E7ECFA', color: '#3757B8' }}>Typed</span>
-              </td>
-            </tr>
-            <tr>
-              <td style={{ padding: '9px 10px' }}>Zip</td>
-              <td style={{ padding: '9px 10px' }}>Invisible</td>
-              <td style={{ padding: '9px 10px', fontFamily: "'IBM Plex Mono', monospace", textAlign: 'right' }}>56 cm</td>
-              <td style={{ padding: '9px 10px' }}>Bone</td>
-              <td style={{ padding: '9px 10px' }}>Left side seam</td>
-              <td style={{ padding: '9px 10px' }}>
-                <span style={{ display: 'inline-block', fontFamily: "'IBM Plex Mono', monospace", fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', padding: '2px 7px', borderRadius: 2, background: '#F8E9E9', color: '#B3272D' }}>Missing</span>
-              </td>
-              <td style={{ padding: '9px 10px', fontFamily: "'IBM Plex Mono', monospace", textAlign: 'right' }}>
-                <span style={{ display: 'inline-block', fontFamily: "'IBM Plex Mono', monospace", fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', padding: '2px 7px', borderRadius: 2, background: '#F8E9E9', color: '#B3272D' }}>Missing</span>
-              </td>
-              <td style={{ padding: '9px 10px' }}>
-                <span style={{ display: 'inline-block', fontFamily: "'IBM Plex Mono', monospace", fontSize: 9.5, letterSpacing: '.12em', textTransform: 'uppercase', padding: '2px 7px', borderRadius: 2, background: '#F8E9E9', color: '#B3272D' }}>Required</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10.5, color: '#4A4844', lineHeight: 1.6, marginTop: 9 }}>
-          Sequin size, type and colour are separate fields. “Sequins” is not a spec — a 5 mm gold cup and a 4 mm purple cup are different orders from the same supplier. These are commercial facts and human decisions, so the drafting agent refuses them rather than inventing a plausible value.
+      <div className="ss-grid">
+        <div className="ss-col">
+          <Section title="Fabric" fields={by('Fabric')}
+            note="Name only. Swatches are not carried on the sheet — gathering them and putting a physical sample in every hand is a person's job." />
+          <Section title="Cover" fields={by('Cover')} />
+        </div>
+
+        <div className="ss-col">
+          <Section title="Construction" fields={by('Construction')} />
+          <Section title="Costing" fields={by('Costing')} />
+          <Section title="Lead time" fields={by('Lead time')} />
+          <Section title="Packaging" fields={by('Packaging')} />
+        </div>
+      </div>
+
+      <div className="ss-sec ss-trims">
+        <h3>Trims · size, type and colour are specified, never implied</h3>
+        {trims.length ? (
+          <div className="ss-tablewrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Item</th><th>Spec</th><th>Placement</th><th>Qty</th><th>Source</th>
+                </tr>
+              </thead>
+              <tbody>
+                {trims.map(t => (
+                  <tr key={t.id}>
+                    <td>{t.item}</td>
+                    <td>{t.spec.trim() || <Missing />}</td>
+                    <td>{t.placement.trim() || <Missing />}</td>
+                    <td className="mono">{t.qty.trim() || <Missing />}</td>
+                    <td><ApprovalBadge v={t.approval} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : <p className="ss-note">No trims on this style record yet.</p>}
+        <p className="ss-note">
+          “Sequins” is not a spec — a 5 mm gold cup and a 4 mm purple cup are different
+          orders from the same supplier. Size, type and colour are separate fields, and
+          the drafting agent refuses them rather than inventing a plausible value.
         </p>
       </div>
 
-      <p style={{
-        marginTop: 22, fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#4A4844',
-        lineHeight: 1.8, borderTop: '1px solid #DDDDE1', paddingTop: 12
-      }}>
-        STYLE SHEET · INTERNAL. Not manufacturable on its own — the factory works from the SPEC SHEET (flat sketch, arrows, measurements) and makes its own paper pattern; the SCHEMATIC carries the true-to-size layout. Synthetic data. Nothing on this sheet has been validated by a factory.
-      </p>
-
-      {parsed && (
-        <div style={{ background: '#FFFFFF', border: '1px solid #DDDDE1', borderRadius: 4, padding: '16px 18px', marginTop: 20 }}>
-          <h3 style={{
-            fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: '.16em',
-            textTransform: 'uppercase', color: '#4A4844', paddingBottom: 9, marginBottom: 11, borderBottom: '1px solid #DDDDE1'
-          }}>
-            Sketch Analysis
-          </h3>
-          <p style={{ fontSize: 12.5, marginBottom: 6 }}><strong>Status:</strong> {parsed.field_status}</p>
-          <p style={{ fontSize: 12.5, marginBottom: 6 }}><strong>Garment category:</strong> {parsed.garment_category}</p>
-          <p style={{ fontSize: 12.5, marginBottom: 12 }}><strong>Silhouette:</strong> {parsed.silhouette}</p>
-
-          <h4 style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: '#4A4844', marginBottom: 8 }}>
-            Key design features
-          </h4>
-          <ul style={{ margin: '0 0 12px 18px', fontSize: 12.5, lineHeight: 1.6 }}>
-            <li><strong>Neckline:</strong> {parsed.key_design_features.neckline}</li>
-            <li><strong>Sleeves:</strong> {parsed.key_design_features.sleeves}</li>
-            <li><strong>Seams & darts:</strong> {parsed.key_design_features.seams_darts}</li>
-            <li><strong>Pockets:</strong> {parsed.key_design_features.pockets}</li>
-            <li><strong>Closures:</strong> {parsed.key_design_features.closures}</li>
-            <li><strong>Hem:</strong> {parsed.key_design_features.hem}</li>
-          </ul>
-
-          <h4 style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: '#4A4844', marginBottom: 8 }}>
-            Views
-          </h4>
-          <p style={{ fontSize: 12.5, marginBottom: 6 }}><strong>Present:</strong> {parsed.views_present.join(', ')}</p>
-          <p style={{ fontSize: 12.5, marginBottom: 12 }}><strong>Missing:</strong> {parsed.views_missing.join(', ')}</p>
-
-          <h4 style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, letterSpacing: '.14em', textTransform: 'uppercase', color: '#4A4844', marginBottom: 8 }}>
-            Proportions
-          </h4>
-          <ul style={{ margin: '0 0 0 18px', fontSize: 12.5, lineHeight: 1.6 }}>
-            <li><strong>Shoulder:</strong> {parsed.rough_proportions.shoulder}</li>
-            <li><strong>Waist:</strong> {parsed.rough_proportions.waist}</li>
-            <li><strong>Skirt volume:</strong> {parsed.rough_proportions.skirt_volume}</li>
-            <li><strong>Length:</strong> {parsed.rough_proportions.length}</li>
-          </ul>
+      {style.bom.length > 0 && (
+        <div className="ss-sec ss-trims">
+          <h3>Bill of materials</h3>
+          <div className="ss-tablewrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Material</th><th>Composition</th><th>Weight</th>
+                  <th>Placement</th><th>Supplier</th><th>Source</th>
+                </tr>
+              </thead>
+              <tbody>
+                {style.bom.map(b => (
+                  <tr key={b.id}>
+                    <td>{b.material}</td>
+                    <td>{b.composition.trim() || <Missing />}</td>
+                    <td className="mono">{b.weight.trim() || <Missing />}</td>
+                    <td>{b.placement.trim() || <Missing />}</td>
+                    <td>{b.supplier.trim() || <Missing />}</td>
+                    <td><ApprovalBadge v={b.approval} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
+
+      <p className="ss-foot">
+        STYLE SHEET · INTERNAL. Not manufacturable on its own — the factory works from the
+        SPEC SHEET (flat sketch, arrows, measurements) and makes its own paper pattern; the
+        SCHEMATIC carries the true-to-size layout. Synthetic data. Nothing on this sheet has
+        been validated by a factory.
+      </p>
     </div>
   )
 }

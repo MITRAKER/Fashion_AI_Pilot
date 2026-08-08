@@ -9,7 +9,11 @@ import { makeWool } from './materials/library.js'
  * collision against the form. That is what produces a real drape: the fall is
  * computed against the body, not modelled by hand.
  */
-export function createGarment(envMap, form) {
+export function createGarment(envMap, form, opts = {}) {
+  // Drape is a property of the CLOTH, so the fabric chosen on the board changes
+  // the simulation rather than only the colour. Defaults reproduce the original
+  // wool behaviour so the style sheet is unaffected.
+  const D = { bend: 0.10, gravity: -5.2, damp: 0.965, flare: 0.115, ...(opts.drape || {}) }
   const COLS = 56          // around the body
   const ROWS = 40          // shoulder to hem
   const OPENING = 0.62     // radians of gap at centre front — it is a coat, it opens
@@ -37,7 +41,7 @@ export function createGarment(envMap, form) {
       // Symmetry is the enemy of drape: a perfectly even ring relaxes into a cone.
       // Seed each column with a little extra cloth so folds have somewhere to start.
       const fold = Math.sin(c * 2.3) * 0.006 + Math.sin(c * 0.7) * 0.009
-      const rad = START_R + (r / (ROWS - 1)) * 0.115 + fold * (r / (ROWS - 1))
+      const rad = START_R + (r / (ROWS - 1)) * D.flare + fold * (r / (ROWS - 1))
       const o = i * 3
       cur[o] = Math.cos(a) * rad
       cur[o + 1] = y
@@ -59,16 +63,16 @@ export function createGarment(envMap, form) {
       if (r + 1 < ROWS) link(idx(r, c), idx(r + 1, c))
       if (c + 1 < COLS && r + 1 < ROWS) link(idx(r, c), idx(r + 1, c + 1), 0.7)
       if (c > 0 && r + 1 < ROWS) link(idx(r, c), idx(r + 1, c - 1), 0.7)
-      if (r + 2 < ROWS) link(idx(r, c), idx(r + 2, c), 0.10)   // bend: low, so cloth folds
-      if (c + 2 < COLS) link(idx(r, c), idx(r, c + 2), 0.08)
+      if (r + 2 < ROWS) link(idx(r, c), idx(r + 2, c), D.bend)   // bend: the fabric's body
+      if (c + 2 < COLS) link(idx(r, c), idx(r, c + 2), D.bend * 0.8)
     }
 
     // Stitch the center-back seam; closure is at left side seam, not center back.
     constraints.push([idx(r, 0), idx(r, COLS - 1), 0, 1])
   }
 
-  const GRAVITY = -5.2
-  const DAMP = 0.965
+  const GRAVITY = D.gravity
+  const DAMP = D.damp
   const ITER = 6
   let time = 0
 
@@ -111,12 +115,14 @@ export function createGarment(envMap, form) {
     time += h
   }
 
-  const mesh = new THREE.Mesh(geometry, makeWool(envMap))
+  const material = opts.material || makeWool(envMap)
+  const mesh = new THREE.Mesh(geometry, material)
   mesh.castShadow = true
   mesh.receiveShadow = true
 
   return {
     object3D: mesh,
+    material,
     update: step,
     /** Advance without drawing so a capture is of settled cloth, never mid-fall. */
     settle(seconds = 4.0) {

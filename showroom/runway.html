@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atelier · Runway</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{ --gold:#e6be85; --ink:#050507; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;background:var(--ink);overflow:hidden}
+  canvas{display:block}
+
+  .hud{position:fixed;inset:0;pointer-events:none;font-family:'IBM Plex Mono',monospace;color:#fff}
+
+  .tl{position:absolute;top:26px;left:30px}
+  .tl .lab{font-size:9.5px;letter-spacing:.24em;text-transform:uppercase;color:rgba(255,255,255,.45)}
+  /* Was a 46px tabular score readout. It names the look now, so it is set as a
+     title rather than a counter — no tabular figures, and sized to a name. */
+  .tl .val{font-family:'Bodoni Moda',serif;font-size:30px;line-height:1;letter-spacing:.02em;
+           text-shadow:0 2px 30px rgba(230,190,133,.35)}
+
+  .tr{position:absolute;top:28px;right:30px;text-align:right;
+      font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.4);line-height:1.9}
+
+  .hint{position:absolute;inset:0;display:grid;place-items:center;background:rgba(5,5,7,.72);
+        transition:opacity .7s;text-align:center}
+  .hint.gone{opacity:0;pointer-events:none}
+  .hint h1{font-family:'Bodoni Moda',serif;font-size:64px;font-weight:400;letter-spacing:.03em;margin-bottom:14px}
+  .hint p{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:rgba(255,255,255,.55);line-height:2.4}
+  .hint .key{color:var(--gold)}
+
+  /* ---------------------------------------------------------- wardrobe */
+  .wardrobe{position:fixed;right:0;top:0;bottom:0;display:flex;align-items:center;
+            pointer-events:none;z-index:40}
+  .wr-rail{display:flex;flex-direction:column;gap:10px;padding:14px 12px;margin-right:14px;
+           background:rgba(14,13,12,.62);backdrop-filter:blur(14px);border-radius:20px;
+           border:1px solid rgba(255,255,255,.10);pointer-events:auto;order:2}
+  .wr-cat{width:60px;height:60px;border-radius:16px;background:rgba(255,255,255,.05);
+          border:1px solid rgba(255,255,255,.10);color:rgba(255,255,255,.72);
+          display:grid;place-items:center;position:relative;cursor:pointer;transition:.16s}
+  .wr-cat svg{width:24px;height:24px}
+  .wr-cat em{position:absolute;bottom:5px;font-style:normal;font-size:7px;letter-spacing:.1em;
+             text-transform:uppercase;color:rgba(255,255,255,.45)}
+  .wr-cat:hover{background:rgba(255,255,255,.10);color:#fff}
+  .wr-cat.on{background:var(--gold);color:#241c00;border-color:var(--gold)}
+  .wr-cat.on em{color:rgba(36,28,0,.65)}
+  .wr-dot{position:absolute;top:7px;right:7px;width:11px;height:11px;border-radius:50%;
+          border:1px solid rgba(255,255,255,.55)}
+
+  .wr-tray{width:0;overflow:hidden;opacity:0;transition:width .26s cubic-bezier(.4,0,.2,1),opacity .2s;
+           pointer-events:auto;order:1}
+  .wr-tray.open{width:290px;opacity:1;padding:18px;margin-right:4px;
+                background:rgba(14,13,12,.72);backdrop-filter:blur(16px);border-radius:20px;
+                border:1px solid rgba(255,255,255,.10)}
+  .wr-title{font-family:'Bodoni Moda',serif;font-size:21px;color:#fff;margin-bottom:12px}
+  .wr-grid{display:grid;gap:8px}
+  .wr-item{display:grid;grid-template-columns:34px 1fr;grid-template-rows:auto auto;
+           gap:2px 11px;align-items:center;padding:9px 11px;border-radius:12px;text-align:left;
+           background:rgba(255,255,255,.04);border:1px solid transparent;cursor:pointer;transition:.14s}
+  .wr-item:hover{background:rgba(255,255,255,.09)}
+  .wr-item.sel{border-color:var(--gold);background:rgba(230,190,133,.13)}
+  .wr-sw{grid-row:1/3;width:34px;height:34px;border-radius:9px;border:1px solid rgba(255,255,255,.28)}
+  .wr-nm{font-size:12.5px;color:#fff}
+  .wr-sub{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.42)}
+  .wr-note{margin-top:12px;font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;
+           color:rgba(255,255,255,.32);line-height:1.7}
+
+  /* --------------------------------------------------------- hotspots */
+  .hs-layer{position:fixed;inset:0;pointer-events:none;z-index:35}
+  .hs-layer.hidden .hs-dot,.hs-layer.hidden .hs-card{opacity:0;pointer-events:none}
+
+  .hs-dot{position:absolute;left:0;top:0;width:26px;height:26px;border-radius:50%;
+          background:rgba(14,13,12,.55);backdrop-filter:blur(8px);
+          border:1.5px solid rgba(255,255,255,.55);color:#fff;cursor:pointer;
+          display:grid;place-items:center;pointer-events:auto;transition:.16s;
+          box-shadow:0 2px 14px rgba(0,0,0,.5)}
+  .hs-dot i{font-style:normal;font-size:11px;font-family:'IBM Plex Mono',monospace}
+  .hs-dot::after{content:'';position:absolute;inset:-7px;border-radius:50%;
+                 border:1px solid rgba(255,255,255,.22);animation:hsPulse 2.6s ease-out infinite}
+  .hs-dot:hover{background:var(--gold);color:#241c00;border-color:var(--gold);transform-origin:center}
+  .hs-dot.sel{background:var(--gold);color:#241c00;border-color:var(--gold)}
+  .hs-dot.sel::after{border-color:rgba(230,190,133,.6)}
+  @keyframes hsPulse{0%{transform:scale(.85);opacity:.9}70%{transform:scale(1.5);opacity:0}100%{opacity:0}}
+
+  .hs-card{position:absolute;width:298px;padding:16px 18px;border-radius:16px;
+           background:rgba(12,11,10,.86);backdrop-filter:blur(18px);
+           border:1px solid rgba(255,255,255,.12);color:#fff;pointer-events:auto;
+           opacity:0;transform:translateY(6px);transition:.18s;
+           box-shadow:0 18px 50px -12px rgba(0,0,0,.8)}
+  .hs-card.open{opacity:1;transform:translateY(0)}
+  .hs-card.unresolved{border-color:rgba(207,51,57,.45)}
+  .hs-card.proposed{border-color:rgba(124,140,248,.45)}
+  .hs-head{display:flex;align-items:center;gap:9px;margin-bottom:11px}
+  .hs-head b{font-family:'Bodoni Moda',serif;font-size:18px;font-weight:400}
+  .hs-state{margin-left:auto;font-size:8.5px;letter-spacing:.13em;text-transform:uppercase;
+            padding:3px 8px;border-radius:999px;white-space:nowrap}
+  .hs-state.approved{background:rgba(61,190,139,.16);color:#6fd7ab}
+  .hs-state.unresolved{background:rgba(229,72,77,.16);color:#ff9a9d}
+  .hs-state.proposed{background:rgba(124,140,248,.16);color:#aab4ff}
+  .hs-card dl{display:grid;grid-template-columns:auto 1fr;gap:5px 12px;margin-bottom:11px}
+  .hs-card dt{font-size:9px;letter-spacing:.12em;text-transform:uppercase;
+              color:rgba(255,255,255,.42);padding-top:2px}
+  .hs-card dd{font-size:12.5px;color:rgba(255,255,255,.94)}
+  .hs-pom{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--gold);
+          padding:7px 9px;border-radius:7px;background:rgba(230,190,133,.09);
+          border:1px solid rgba(230,190,133,.18)}
+  .hs-note{margin-top:10px;font-size:11px;line-height:1.6;color:rgba(255,255,255,.6)}
+  .hs-by{margin-top:11px;padding-top:9px;border-top:1px solid rgba(255,255,255,.1);
+         font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.4)}
+
+  .hs-toggle{position:absolute;left:30px;bottom:34px;display:flex;align-items:center;gap:8px;
+             padding:9px 15px;border-radius:999px;background:rgba(14,13,12,.6);
+             backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.12);
+             color:rgba(255,255,255,.6);font-size:10px;letter-spacing:.16em;
+             text-transform:uppercase;cursor:pointer;pointer-events:auto;
+             font-family:'IBM Plex Mono',monospace}
+  .hs-toggle span{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.28)}
+  .hs-toggle.on{color:#fff}
+  .hs-toggle.on span{background:var(--gold);box-shadow:0 0 10px rgba(230,190,133,.8)}
+</style>
+</head>
+<body>
+  <div class="hud">
+    <div class="tl">
+      <div class="lab">Look</div>
+      <div class="val" id="lookname">DR-1041</div>
+    </div>
+
+    <div class="tr">
+      Two Rivers · SS27<br>
+      <span id="looklabel">Medium Indigo · DR-1041</span>
+    </div>
+
+    <div class="hint" id="hint">
+      <div>
+        <h1>Runway</h1>
+        <p>
+          <span class="key">Space</span> or <span class="key">click</span> to hold the walk<br>
+          Click a numbered marker to read that detail
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/runway-main.js"></script>
+</body>
+</html>
