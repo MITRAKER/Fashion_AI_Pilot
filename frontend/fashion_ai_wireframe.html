@@ -638,8 +638,8 @@ tr:hover td{background:#fafafc}
       <div class="card">
         <h3>Version rail &middot; the archive</h3>
         <div class="vrail">
-          <div class="vcard"><div class="vthumb"></div><div class="vmeta"><b>v1 &middot; APPROVED</b><br>M. Chen &middot; Wk 6<br>SEALED &middot; view-only</div></div>
-          <div class="vcard current"><div class="vthumb" style="filter:hue-rotate(20deg)"></div><div class="vmeta"><b>v2 &middot; DRAFT</b><br>opened by B. Osei &middot; Wk 9<br>why: "reference oversaturated<br>in market"</div><button class="btn sm" style="margin-top:8px" onclick="go('portal',null)">Open in portal</button></div>
+          <div class="vcard"><div class="vthumb"></div><div class="vmeta"><b>v1 &middot; APPROVED</b><br>M. Chen &middot; Wk 6<br>SEALED &middot; view-only</div><button class="btn ghost sm" style="margin-top:8px" onclick="openPortalVersion('v1')">View in portal</button></div>
+          <div class="vcard current"><div class="vthumb" style="filter:hue-rotate(20deg)"></div><div class="vmeta"><b>v2 &middot; DRAFT</b><br>opened by B. Osei &middot; Wk 9<br>why: "reference oversaturated<br>in market"</div><button class="btn sm" style="margin-top:8px" onclick="openPortalVersion('v2')">Open in portal</button></div>
         </div>
         <p style="font-size:12px;color:var(--graphite);margin-top:12px">Touching an approved board seals it automatically and opens a draft copy. Designers play freely; the system files the paperwork. Downstream stages show amber until v2 is approved.</p>
       </div>
@@ -649,16 +649,19 @@ tr:hover td{background:#fafafc}
   <!-- MOOD BOARD PORTAL -->
   <section class="page" id="pg-portal">
     <span class="backlink" onclick="go('stage3',null)">&larr; Stage 3 / Board versions</span>
-    <div class="crumb">SS27 / Stage 3 / Portal / v2 draft</div>
+    <div class="crumb" id="portalcrumb">SS27 / Stage 3 / Portal / v2 draft</div>
     <h2 class="pg">Mood board portal</h2>
-    <div class="amber"><b>v2 &middot; DRAFT</b> &mdash; supersedes approved v1 &middot; concept gate: Changes Requested &middot; downstream stages marked "upstream revision in progress" (work continues)</div>
+    <div class="amber" id="portalbanner"><b>v2 &middot; DRAFT</b> &mdash; supersedes approved v1 &middot; concept gate: Changes Requested &middot; downstream stages marked "upstream revision in progress" (work continues)</div>
 
     <div class="card">
       <h3>Working board &middot; click tiles to mark as generation references</h3>
-      <div class="portalbar">
+      <div class="portalbar" id="portalbar">
         <label class="btn ghost sm" style="cursor:pointer">Upload from computer<input type="file" accept="image/*" style="display:none" onchange="portalUpload(this)"></label>
         <button class="btn ghost sm" onclick="toast('Tile removed from draft. v1 remains sealed and untouched. (VER-001)')">Remove selected</button>
         <span class="mono" style="font-size:10px;color:var(--graphite)">Every tile carries provenance from birth. Uploads are designer-declared; generations carry model + prompt on file.</span>
+      </div>
+      <div class="portalbar" id="sealedbar" style="display:none">
+        <span class="mono" style="font-size:10px;letter-spacing:.08em">SEALED &middot; v1 &middot; APPROVED &mdash; view only. Edit to open a new draft.</span>
       </div>
       <div class="board" id="board-v2">
         <div class="tile wide" style="background:linear-gradient(130deg,#E8E0D0 30%,#cbb9a2 30% 55%,#8a8f98 55%)" onclick="refToggle(this)"><span class="refmark">REF</span><span class="prov">AI-GENERATED &middot; kept &middot; from v1</span></div>
@@ -666,8 +669,9 @@ tr:hover td{background:#fafafc}
         <div class="tile" style="background:#6b7a5a" onclick="refToggle(this)"><span class="refmark">REF</span><span class="prov">COLOR &middot; MOSS</span></div>
         <div class="tile" style="background:repeating-linear-gradient(45deg,#cbb9a2,#cbb9a2 3px,#E8E0D0 3px,#E8E0D0 7px)" onclick="refToggle(this)"><span class="refmark">REF</span><span class="prov">SWATCH &middot; silk faille 19mm</span></div>
       </div>
+      <div class="board" id="board-sealed" style="display:none"></div>
 
-      <div class="genpanel">
+      <div class="genpanel" id="genpanel">
         <b style="font-size:13px;letter-spacing:.08em">GENERATE AN ELEMENT</b>
         <p style="font-size:12px;color:var(--graphite);margin:6px 0 10px">The prompt travels WITH the reference tiles you selected above and the season's structured brief (palette, exclusions, rights rules). Provider is configurable &mdash; keys live server-side, never here. (AI-001, CRE-001)</p>
         <textarea id="genprompt" placeholder="e.g. draped trench silhouette in bone faille, morning light, quiet architecture&hellip;"></textarea>
@@ -680,7 +684,7 @@ tr:hover td{background:#fafafc}
       </div>
     </div>
 
-    <div class="card">
+    <div class="card" id="approvecard">
       <h3>Approve v2</h3>
       <div class="genrow">
         <input type="text" id="whyline" placeholder='Why did this change? (required &mdash; e.g. "reference oversaturated in market")' style="flex:1;border:1px solid var(--line);padding:9px;font-family:var(--body);font-size:13px">
@@ -801,6 +805,22 @@ function setAsBoard(t){document.querySelectorAll('#board-v2 .tile.is-board').for
 const h=document.getElementById('stage3-hero');if(h){h.style.background=t.style.background;h.style.backgroundImage=t.style.backgroundImage;h.style.backgroundSize='cover';h.style.backgroundPosition='center';const c=document.getElementById('stage3-hero-cap');if(c)c.textContent='BOARD \u00b7 promoted from portal v2 \u00b7 '+tileIdent(t);}
 toast('Set as board: "'+tileIdent(t)+'" is now the working board hero. Stage 3 "Complete" points here. (VER-001)');}
 document.querySelectorAll('#board-v2 .tile').forEach(attachSetBoard);
+let portalLocked=false;
+function openPortalVersion(v){portalLocked=(v==='v1');
+const sealed=document.getElementById('board-sealed');
+if(portalLocked&&!sealed.dataset.filled){document.querySelectorAll('#board-v1 .tile').forEach(x=>{const c=x.cloneNode(true);c.onclick=sealedTouch;c.style.cursor='pointer';sealed.appendChild(c);});sealed.dataset.filled='1';}
+document.getElementById('board-v2').style.display=portalLocked?'none':'';
+sealed.style.display=portalLocked?'':'none';
+document.getElementById('portalbar').style.display=portalLocked?'none':'';
+document.getElementById('sealedbar').style.display=portalLocked?'':'none';
+document.getElementById('genpanel').style.display=portalLocked?'none':'';
+document.getElementById('approvecard').style.display=portalLocked?'none':'';
+document.getElementById('portalcrumb').textContent=portalLocked?'SS27 / Stage 3 / Portal / v1 sealed':'SS27 / Stage 3 / Portal / v2 draft';
+document.getElementById('portalbanner').innerHTML=portalLocked
+ ?'<b>v1 &middot; APPROVED</b> &mdash; SEALED &middot; view only &middot; signed M. Chen, Wk 6. Any edit opens in the draft &mdash; v1 itself never changes. (VER-001)'
+ :'<b>v2 &middot; DRAFT</b> &mdash; supersedes approved v1 &middot; concept gate: Changes Requested &middot; downstream stages marked "upstream revision in progress" (work continues)';
+go('portal',null);}
+function sealedTouch(){toast('v1 is sealed \u2014 touching an approved board opens work in a draft. Routing you to the v2 draft. (VER-001)');openPortalVersion('v2');}
 function portalUpload(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{const b=document.getElementById('board-v2');const t=document.createElement('div');t.className='tile';t.style.backgroundImage='url('+e.target.result+')';t.onclick=()=>refToggle(t);t.innerHTML='<span class="refmark">REF</span><span class="prov">UPLOADED &middot; designer-declared &middot; '+f.name.slice(0,18)+'</span>';b.appendChild(t);attachSetBoard(t);toast('Element added from your computer. Provenance chip attached: UPLOADED, rights designer-declared. (REF-002)');};r.readAsDataURL(f);}
 function portalSimTile(n){const b=document.getElementById('board-v2');const t=document.createElement('div');t.className='tile';t.style.background='linear-gradient(150deg,#E8E0D0 20%,#b9c6ee 20% 45%,#6b7a5a 45% 70%,#1F1F1F 70%)';t.onclick=()=>refToggle(t);t.innerHTML='<span class="refmark">REF</span><span class="prov">AI-GENERATED &middot; provider via config &middot; '+n+' refs &middot; prompt on file</span>';b.appendChild(t);attachSetBoard(t);}
 async function portalGenerate(){const p=document.getElementById('genprompt').value.trim();const n=document.querySelectorAll('#board-v2 .tile.sel-ref').length;if(!p){toast('Write a prompt first - it travels with your selected reference tiles.');return;}
