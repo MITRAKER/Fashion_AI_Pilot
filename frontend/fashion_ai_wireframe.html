@@ -144,6 +144,8 @@ tr:hover td{background:#fafafc}
 .tile.sel-ref .refmark{display:block}
 .tile .setboard{position:absolute;top:6px;left:6px;display:none;background:var(--ink);color:#fff;border:0;font-family:var(--mono);font-size:8px;letter-spacing:.08em;text-transform:uppercase;padding:3px 7px;cursor:pointer}
 .tile:hover .setboard{display:block}
+.tile .removetile{position:absolute;bottom:26px;right:6px;display:none;background:#fff;color:var(--ink);border:1px solid var(--ink);font-family:var(--mono);font-size:12px;line-height:16px;width:18px;height:18px;padding:0;text-align:center;cursor:pointer}
+.tile:hover .removetile{display:block}
 .tile.is-board{outline:3px solid var(--ink);outline-offset:-3px}
 .tile.is-board::after{content:"BOARD";position:absolute;top:6px;right:6px;background:var(--ink);color:#fff;font-family:var(--mono);font-size:9px;letter-spacing:.08em;padding:2px 6px}
 .tile.is-board .refmark{top:26px}
@@ -789,7 +791,12 @@ CAL.order.forEach(code=>{
 function refToggle(t){t.classList.toggle('sel-ref');const n=document.querySelectorAll('#board-v2 .tile.sel-ref').length;document.getElementById('refcount').textContent=n+' reference tiles selected';}
 /* set-as-board promotion: one tile at a time becomes the working board's hero */
 function tileIdent(t){const p=t.querySelector('.prov');return p?p.textContent.trim():'untitled tile';}
-function attachSetBoard(t){if(t.querySelector('.setboard'))return;const b=document.createElement('button');b.className='setboard';b.textContent='Set as board';b.onclick=e=>{e.stopPropagation();setAsBoard(t);};t.appendChild(b);}
+function attachSetBoard(t){if(t.querySelector('.setboard'))return;const b=document.createElement('button');b.className='setboard';b.textContent='Set as board';b.onclick=e=>{e.stopPropagation();setAsBoard(t);};t.appendChild(b);attachRemove(t);}
+function attachRemove(t){if(t.querySelector('.removetile'))return;const b=document.createElement('button');b.className='removetile';b.textContent='\u00d7';b.title='Remove tile';b.onclick=e=>{e.stopPropagation();removeTile(t);};t.appendChild(b);}
+function removeTile(t){if(!confirm('Remove this tile?'))return;const wasBoard=t.classList.contains('is-board');const wasRef=t.classList.contains('sel-ref');t.remove();
+if(wasRef){const n=document.querySelectorAll('#board-v2 .tile.sel-ref').length;document.getElementById('refcount').textContent=n+' reference tiles selected';}
+if(wasBoard){const h=document.getElementById('stage3-hero');if(h){h.style.background='linear-gradient(130deg,#E8E0D0 30%,#cbb9a2 30% 55%,#8a8f98 55%)';h.style.backgroundImage='';const c=document.getElementById('stage3-hero-cap');if(c)c.textContent='HERO \u00b7 v1 board image \u00b7 no portal promotion yet \u2014 "Set as board" on a portal tile replaces this';}
+toast('Board tile removed \u2014 select a new one before approving.');}}
 function setAsBoard(t){document.querySelectorAll('#board-v2 .tile.is-board').forEach(x=>x.classList.remove('is-board'));t.classList.add('is-board');
 const h=document.getElementById('stage3-hero');if(h){h.style.background=t.style.background;h.style.backgroundImage=t.style.backgroundImage;h.style.backgroundSize='cover';h.style.backgroundPosition='center';const c=document.getElementById('stage3-hero-cap');if(c)c.textContent='BOARD \u00b7 promoted from portal v2 \u00b7 '+tileIdent(t);}
 toast('Set as board: "'+tileIdent(t)+'" is now the working board hero. Stage 3 "Complete" points here. (VER-001)');}
