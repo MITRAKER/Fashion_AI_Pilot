@@ -619,6 +619,28 @@ const ROUTES: [string, RegExp, Handler][] = [
     return { ok: true }
   }],
 
+  // Named reference library: designer-curated images saved from board tiles,
+  // browsable by category. Names are the retrieval key, so they are required.
+  ['GET', /^\/api\/reference-library$/, ({ db }) =>
+    (db.prepare('SELECT id, name, category, image, created_at FROM reference_library ORDER BY created_at DESC')
+      .all() as any[]).map(r => ({
+        id: r.id, name: r.name, category: r.category, image: r.image, createdAt: r.created_at,
+      }))],
+
+  ['POST', /^\/api\/reference-library$/, ({ db, body }) => {
+    const name = String(body?.name ?? '').trim()
+    const category = String(body?.category ?? '')
+    const image = String(body?.image ?? '')
+    if (!name) throw new HttpError(400, 'name is required')
+    if (!['heroes', 'illustration-styles', 'mood-boards', 'fabric-photos'].includes(category))
+      throw new HttpError(400, 'unknown category: ' + category)
+    if (!image.startsWith('data:image/')) throw new HttpError(400, 'image must be a data URL')
+    const id = randomUUID()
+    db.prepare('INSERT INTO reference_library (id, name, category, image, created_at) VALUES (?, ?, ?, ?, ?)')
+      .run(id, name, category, image, new Date().toISOString())
+    return { id }
+  }],
+
   // Portal image generation. The key is read from the server environment only —
   // it must never appear in a response body or in client code.
   // With reference images attached (multipart) we call /v1/images/edits so the

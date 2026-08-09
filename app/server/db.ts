@@ -100,6 +100,10 @@ CREATE TABLE IF NOT EXISTS model_invocations (
 
 CREATE TABLE IF NOT EXISTS board_state (
   id TEXT PRIMARY KEY, json TEXT NOT NULL, updated_at TEXT NOT NULL);
+
+CREATE TABLE IF NOT EXISTS reference_library (
+  id TEXT PRIMARY KEY, name TEXT NOT NULL, category TEXT NOT NULL,
+  image TEXT NOT NULL, created_at TEXT NOT NULL);
 `
 
 export type DB = DatabaseSync

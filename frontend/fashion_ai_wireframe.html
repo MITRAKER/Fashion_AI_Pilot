@@ -146,6 +146,18 @@ tr:hover td{background:#fafafc}
 .tile:hover .setboard{display:block}
 .tile .removetile{position:absolute;bottom:26px;right:6px;display:none;background:#fff;color:var(--ink);border:1px solid var(--ink);font-family:var(--mono);font-size:12px;line-height:16px;width:18px;height:18px;padding:0;text-align:center;cursor:pointer}
 .tile:hover .removetile{display:block}
+.tile .savelib{position:absolute;top:6px;left:96px;display:none;background:#fff;color:var(--ink);border:1px solid var(--ink);font-family:var(--mono);font-size:8px;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;cursor:pointer}
+.tile:hover .savelib{display:block}
+.tile.chip:hover .savelib{top:auto;bottom:26px;left:96px}
+.libcat-h{font-size:10px;letter-spacing:.1em;color:var(--graphite);margin-top:4px}
+.librow{display:flex;gap:10px;flex-wrap:wrap}
+.libitem{width:110px;cursor:pointer;text-align:center}
+.libitem .libthumb{width:110px;height:80px;background-size:cover;background-position:center;border:1px solid var(--line)}
+.libitem:hover .libthumb{outline:2px solid var(--ink)}
+.libitem .libname{display:block;font-family:var(--mono);font-size:9px;letter-spacing:.05em;padding:3px 0;text-transform:uppercase}
+#libsave{position:fixed;inset:0;background:rgba(15,15,15,.45);z-index:180;display:none;align-items:center;justify-content:center}
+#libsave.on{display:flex}
+#libsave .card{background:#fff;padding:18px;width:340px;margin:0}
 .tile.chip{aspect-ratio:auto;height:84px;align-self:start}
 .tile.chip .chipicon{position:absolute;top:5px;left:5px;font-size:9px;line-height:1;background:rgba(255,255,255,.9);border:1px solid var(--line);padding:2px 4px;font-family:var(--mono)}
 .tile.chip .prov{font-size:7px}
@@ -671,6 +683,7 @@ tr:hover td{background:#fafafc}
         <label class="btn ghost sm" style="cursor:pointer">Inspo<input type="file" accept="image/*" style="display:none" onchange="portalUpload(this)"></label>
         <button class="btn ghost sm" onclick="togglePanel('fabricpanel')">Fabrics</button>
         <button class="btn ghost sm" onclick="togglePanel('colorpanel')">Colors</button>
+        <button class="btn ghost sm" onclick="togglePanel('librarypanel')">From Library</button>
         <button class="btn ghost sm" onclick="removeSelected()">Remove selected</button>
         <span class="mono" style="font-size:10px;color:var(--graphite)">Every tile carries provenance from birth. Uploads are designer-declared; generations carry model + prompt on file.</span>
       </div>
@@ -694,6 +707,10 @@ tr:hover td{background:#fafafc}
         <input type="text" id="colorname" placeholder="Name the color (e.g. MOSS)">
         <button class="btn sm" onclick="addColor()">Add chip</button>
         <span class="mono" style="font-size:9px;color:var(--graphite)">hex only &mdash; no Pantone reference, no matching claim</span>
+      </div>
+      <div class="subpanel" id="librarypanel" style="display:none;flex-direction:column;align-items:flex-start">
+        <span class="mono" style="font-size:10px">REFERENCE LIBRARY &middot; saved by name &middot; click an image to add it to the board</span>
+        <div id="libgroups" style="display:flex;flex-direction:column;gap:8px;width:100%"></div>
       </div>
       <div class="portalbar" id="sealedbar" style="display:none">
         <span class="mono" style="font-size:10px;letter-spacing:.08em">SEALED &middot; v1 &middot; APPROVED &mdash; view only. Edit to open a new draft.</span>
@@ -733,6 +750,24 @@ tr:hover td{background:#fafafc}
 </div>
 
 <div class="toast" id="toast"></div>
+
+<div id="libsave" onclick="if(event.target===this)libSaveCancel()">
+  <div class="card">
+    <h3>Save to library</h3>
+    <p class="mono" style="font-size:10px;color:var(--graphite);margin:6px 0 10px">Named at save time &mdash; the library is browsed by name and category.</p>
+    <input type="text" id="libname" placeholder="Name (required, e.g. SOLARPUNK HERO 01)" style="width:100%;border:1px solid var(--line);padding:8px;font-family:var(--body);font-size:13px;margin-bottom:8px">
+    <select id="libcat" style="width:100%;margin-bottom:12px">
+      <option value="heroes">Heroes</option>
+      <option value="illustration-styles">Illustration styles</option>
+      <option value="mood-boards">Mood boards</option>
+      <option value="fabric-photos">Fabric photos</option>
+    </select>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn ghost sm" onclick="libSaveCancel()">Cancel</button>
+      <button class="btn sm" onclick="libSaveConfirm()">Save</button>
+    </div>
+  </div>
+</div>
 
 <div id="lightbox" onclick="if(event.target===this)lbClose()">
   <img id="lb-img" alt="Enlarged board image">
@@ -841,7 +876,7 @@ CAL.order.forEach(code=>{
 function refToggle(t){t.classList.toggle('sel-ref');const n=document.querySelectorAll('#board-v2 .tile.sel-ref').length;document.getElementById('refcount').textContent=n+' reference tiles selected';}
 /* set-as-board promotion: one tile at a time becomes the working board's hero */
 function tileIdent(t){const p=t.querySelector('.prov');return p?p.textContent.trim():'untitled tile';}
-function attachSetBoard(t){if(t.querySelector('.setboard'))return;const b=document.createElement('button');b.className='setboard';b.textContent='Set as board';b.onclick=e=>{e.stopPropagation();setAsBoard(t);};t.appendChild(b);attachRemove(t);}
+function attachSetBoard(t){if(t.querySelector('.setboard'))return;const b=document.createElement('button');b.className='setboard';b.textContent='Set as board';b.onclick=e=>{e.stopPropagation();setAsBoard(t);};t.appendChild(b);attachRemove(t);attachSaveLib(t);}
 function attachRemove(t){if(t.querySelector('.removetile'))return;const b=document.createElement('button');b.className='removetile';b.textContent='\u00d7';b.title='Remove tile';b.onclick=e=>{e.stopPropagation();removeTile(t);};t.appendChild(b);}
 function removeTile(t){if(!confirm('Remove this tile?'))return;const wasBoard=t.classList.contains('is-board');const wasRef=t.classList.contains('sel-ref');t.remove();
 if(wasRef){const n=document.querySelectorAll('#board-v2 .tile.sel-ref').length;document.getElementById('refcount').textContent=n+' reference tiles selected';}
@@ -854,7 +889,47 @@ if(!confirm('Remove '+sel.length+' selected tile'+(sel.length>1?'s':'')+'?'))ret
 let hadBoard=false;sel.forEach(t=>{if(t.classList.contains('is-board'))hadBoard=true;t.remove();});
 document.getElementById('refcount').textContent='0 reference tiles selected';
 if(hadBoard)clearBoardPromotion();else toast('Removed '+sel.length+' tile'+(sel.length>1?'s':'')+' from draft. v1 remains sealed and untouched. (VER-001)');}
-function togglePanel(id){if(portalLocked)return;['fabricpanel','colorpanel'].forEach(p=>{const el=document.getElementById(p);el.style.display=(p===id&&el.style.display==='none')?'flex':'none';});}
+function togglePanel(id){if(portalLocked)return;['fabricpanel','colorpanel','librarypanel'].forEach(p=>{const el=document.getElementById(p);el.style.display=(p===id&&el.style.display==='none')?'flex':'none';});
+if(id==='librarypanel'&&document.getElementById('librarypanel').style.display!=='none')libRender();}
+
+/* Named reference library: save any tile under a designer-chosen name + category,
+   browse it back grouped by category, add to the board like an upload. */
+function attachSaveLib(t){if(t.querySelector('.savelib'))return;const b=document.createElement('button');b.className='savelib';b.textContent='Save to library';b.onclick=e=>{e.stopPropagation();openLibSave(t);};t.appendChild(b);}
+let libPendingTile=null;
+function openLibSave(t){libPendingTile=t;document.getElementById('libname').value='';document.getElementById('libsave').classList.add('on');document.getElementById('libname').focus();}
+function libSaveCancel(){libPendingTile=null;document.getElementById('libsave').classList.remove('on');}
+function blobToDataUrl(b){return new Promise(res=>{const r=new FileReader();r.onload=e=>res(e.target.result);r.readAsDataURL(b);});}
+async function libSaveConfirm(){const name=document.getElementById('libname').value.trim();
+if(!name){toast('A name is required \u2014 the library is browsed by name.');return;}
+const cat=document.getElementById('libcat').value;const t=libPendingTile;if(!t)return;
+const m=(t.style.backgroundImage||'').match(/url\(["']?([^"')]+)["']?\)/);
+const img=(m&&m[1].startsWith('data:'))?m[1]:await blobToDataUrl(await tileBlob(t));
+try{const r=await fetch('/api/reference-library',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:name,category:cat,image:img})});
+if(!r.ok)throw new Error('http '+r.status);
+libSaveCancel();toast('Saved to library: "'+name.toUpperCase()+'" under '+cat+'.');
+if(document.getElementById('librarypanel').style.display!=='none')libRender();
+}catch(e){toast('Library save failed \u2014 is the API server running?');}}
+const LIB_CATS=['heroes','illustration-styles','mood-boards','fabric-photos'];
+async function libRender(){const g=document.getElementById('libgroups');g.innerHTML='<span class="mono" style="font-size:10px;color:var(--graphite)">loading\u2026</span>';
+try{const r=await fetch('/api/reference-library');if(!r.ok)throw new Error('http '+r.status);
+const items=await r.json();g.innerHTML='';
+if(!items.length){g.innerHTML='<span class="mono" style="font-size:10px;color:var(--graphite)">Library is empty \u2014 hover any tile and use "Save to library".</span>';return;}
+for(const cat of LIB_CATS){const inCat=items.filter(i=>i.category===cat);if(!inCat.length)continue;
+const h=document.createElement('div');h.className='mono libcat-h';h.textContent=cat.toUpperCase().replace(/-/g,' ')+' \u00b7 '+inCat.length;g.appendChild(h);
+const row=document.createElement('div');row.className='librow';
+for(const it of inCat){const c=document.createElement('div');c.className='libitem';c.title='Add "'+it.name+'" to the board';
+c.innerHTML='<div class="libthumb"></div><span class="libname"></span>';
+c.querySelector('.libthumb').style.backgroundImage='url('+it.image+')';
+c.querySelector('.libname').textContent=it.name;
+c.onclick=()=>libAddToBoard(it);row.appendChild(c);}
+g.appendChild(row);}
+}catch(e){g.innerHTML='<span class="mono" style="font-size:10px">library unavailable \u2014 is the API server running?</span>';}}
+function libAddToBoard(it){const b=document.getElementById('board-v2');const t=document.createElement('div');t.className='tile';
+t.style.backgroundImage='url('+it.image+')';t.style.backgroundSize='cover';t.onclick=()=>refToggle(t);
+t.innerHTML='<span class="refmark">REF</span><span class="prov"></span>';
+t.querySelector('.prov').textContent='LIBRARY \u00b7 '+it.category+' \u00b7 '+it.name;
+b.appendChild(t);attachSetBoard(t);
+toast('Added from library: "'+it.name+'" ('+it.category+'). Provenance: LIBRARY.');}
 function addChipTile(kind,prov,bg){const b=document.getElementById('board-v2');const t=document.createElement('div');t.className='tile chip';t.style.background=bg;
 t.onclick=()=>refToggle(t);t.innerHTML='<span class="chipicon">'+(kind==='fabric'?'\u25a4':'\u25cf')+'</span><span class="refmark">REF</span><span class="prov"></span>';
 t.querySelector('.prov').textContent=prov;b.appendChild(t);attachSetBoard(t);}
@@ -878,7 +953,7 @@ document.getElementById('board-v2').style.display=portalLocked?'none':'';
 sealed.style.display=portalLocked?'':'none';
 document.getElementById('portalbar').style.display=portalLocked?'none':'';
 document.getElementById('sealedbar').style.display=portalLocked?'':'none';
-if(portalLocked){document.getElementById('fabricpanel').style.display='none';document.getElementById('colorpanel').style.display='none';}
+if(portalLocked){document.getElementById('fabricpanel').style.display='none';document.getElementById('colorpanel').style.display='none';document.getElementById('librarypanel').style.display='none';}
 document.getElementById('genpanel').style.display=portalLocked?'none':'';
 document.getElementById('approvecard').style.display=portalLocked?'none':'';
 document.getElementById('portalcrumb').textContent=portalLocked?'SS27 / Stage 3 / Portal / v1 sealed':'SS27 / Stage 3 / Portal / v2 draft';
@@ -953,7 +1028,7 @@ document.getElementById('lightbox').addEventListener('wheel',e=>{e.preventDefaul
    rules. A MutationObserver catches every board change (tiles added/removed,
    REF/BOARD class flips, style edits) and saves debounced; restore runs at load. */
 const BOARD_KEY='v2-draft';let boardSaveT=null,boardRestoring=false;
-function boardSerialize(){return Array.from(document.querySelectorAll('#board-v2 .tile')).map(t=>{const c=t.cloneNode(true);c.querySelectorAll('.setboard,.removetile').forEach(x=>x.remove());return c.outerHTML;});}
+function boardSerialize(){return Array.from(document.querySelectorAll('#board-v2 .tile')).map(t=>{const c=t.cloneNode(true);c.querySelectorAll('.setboard,.removetile,.savelib').forEach(x=>x.remove());return c.outerHTML;});}
 function boardSave(){if(boardRestoring)return;clearTimeout(boardSaveT);boardSaveT=setTimeout(()=>{
  fetch('/api/board-state/'+BOARD_KEY,{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({tiles:boardSerialize()})}).catch(()=>{});},400);}
 async function boardRestore(){boardRestoring=true;try{
