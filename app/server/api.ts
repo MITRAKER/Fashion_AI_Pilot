@@ -8,9 +8,8 @@ import {
 import { stubProvider, type DraftProvider } from './ai/provider.ts'
 import { runPreflight, summarise } from '../shared/rules.ts'
 import { CATEGORY_TEMPLATES } from '../shared/categories.ts'
+import { newSeasonStages } from '../shared/calendar.ts'
 import type { CategoryTemplate, GateKey, Role, Style, User } from '../shared/types.ts'
-
-const COLLECTION_ID = 'SS27-CORE'
 
 /**
  * The single place a model vendor is chosen (D-05, still open). Everything else in
@@ -21,6 +20,12 @@ const provider: DraftProvider = stubProvider
 
 /** PRD §4.1 step 2 — gates are a sequence, not four independent switches. */
 const GATE_ORDER: GateKey[] = ['concept', 'design', 'technical', 'handoff']
+const GATE_LABEL: Record<GateKey, string> = {
+  concept: 'Concept green light',
+  design: 'Design green light',
+  technical: 'Technical package',
+  handoff: 'Production handoff',
+}
 
 /** AI-002 — hard cap per style. Exceeding it requires explicit confirmation. */
 const BUDGET_PER_STYLE = 0.05
@@ -43,6 +48,8 @@ const EDIT_CRITICAL: Role[] = ['owner', 'technical']
 const EDIT_ANY: Role[] = ['owner', 'technical', 'creative']
 const APPROVE: Role[] = ['owner', 'technical']
 const COMMENT: Role[] = ['owner', 'technical', 'creative', 'factory']
+/** Starting a season or a style is design work, not a factory or viewer action. */
+const CREATE: Role[] = ['owner', 'creative', 'technical']
 
 const require_ = (user: User | null, roles: Role[], what: string) => {
   if (!user) throw new HttpError(401, 'Authentication required')
@@ -100,7 +107,8 @@ function bumpIfApproved(db: DB, style: Style, actor: string, reason: string) {
 /* ------------------------------------------------------------------- routes */
 
 type Handler = (ctx: {
-  db: DB; user: User | null; body: any; params: string[]; setCookie: (v: string) => void
+  db: DB; user: User | null; body: any; params: string[]
+  query: URLSearchParams; setCookie: (v: string) => void
 }) => unknown | Promise<unknown>
 
 const ROUTES: [string, RegExp, Handler][] = [
@@ -126,12 +134,23 @@ const ROUTES: [string, RegExp, Handler][] = [
 
   ['GET', /^\/api\/me$/, ({ user }) => ({ user })],
 
-  ['GET', /^\/api\/state$/, ({ db, user }) => {
+  ['GET', /^\/api\/state$/, ({ db, user, query }) => {
     require_(user, ['owner', 'technical', 'creative', 'factory', 'viewer'], 'read')
-    const collection = readCollection(db, COLLECTION_ID)
-    if (!collection) throw new HttpError(404, 'No collection')
+    // Every season, not just the seeded one. This used to read a hardcoded
+    // SS27-CORE, which meant a season a user created was invisible the moment
+    // they created it.
+    const seasons = db.prepare(
+      'SELECT id, brand, season, year FROM collections ORDER BY year, season').all() as any[]
+    if (!seasons.length) {
+      return { user, collection: null, seasons: [], audit: readAudit(db), invocations: [],
+               corrections: [], proposals: [], templates: readTemplates(db), preflight: {} }
+    }
+    const wanted = query?.get('collection')
+    const id = (wanted && seasons.some(s => s.id === wanted)) ? wanted : seasons[0].id
+    const collection = readCollection(db, id)
+    if (!collection) throw new HttpError(404, `No season ${id}`)
     return {
-      user, collection,
+      user, collection, seasons,
       audit: readAudit(db),
       invocations: readInvocations(db),
       corrections: readCorrections(db),
@@ -502,6 +521,110 @@ const ROUTES: [string, RegExp, Handler][] = [
     return { style: readStyle(db, styleId), proposals: readProposals(db) }
   }],
 
+  /**
+   * Start a real season.
+   *
+   * Until this existed the only collection in the system was the seeded
+   * synthetic one, so nothing a designer actually did could live here. A new
+   * season gets the full fifteen-stage plan from shared/calendar.ts with every
+   * stage Not Started — no invented progress, no pre-approved gates.
+   */
+  ['POST', /^\/api\/collections$/, ({ db, user, body }) => {
+    require_(user, CREATE, 'start a season')
+    const brand = String(body?.brand ?? '').trim()
+    const season = String(body?.season ?? '').trim()
+    const year = Number(body?.year)
+    if (!brand || !season) throw new HttpError(400, 'A season needs a brand and a season name.')
+    if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+      throw new HttpError(400, 'A season needs a four-digit year.')
+    }
+    const id = String(body?.id ?? `${season.slice(0, 2).toUpperCase()}${String(year).slice(2)}-${
+      randomUUID().slice(0, 4).toUpperCase()}`)
+    if (db.prepare('SELECT id FROM collections WHERE id = ?').get(id)) {
+      throw new HttpError(409, `A season with id ${id} already exists.`)
+    }
+    db.prepare(`INSERT INTO collections
+      (id, brand, season, year, market, customer, ship_window, currency, owner)
+      VALUES (?,?,?,?,?,?,?,?,?)`)
+      .run(id, brand, season, year,
+           String(body?.market ?? ''), String(body?.customer ?? ''),
+           String(body?.shipWindow ?? ''), String(body?.currency ?? 'USD'), user!.name)
+    for (const s of newSeasonStages()) {
+      db.prepare(`INSERT INTO stages (collection_id, n, name, weeks, output, status, gate)
+                  VALUES (?,?,?,?,?,?,?)`)
+        .run(id, s.n, s.name, s.weeks, s.output, s.status, s.gate ?? null)
+    }
+    audit(db, { actor: user!.name, action: 'Season created', target: id })
+    return { collection: readCollection(db, id) }
+  }],
+
+  /**
+   * Add a style to a season.
+   *
+   * The category template decides which fields the style needs, and every one
+   * of them is created EMPTY and Unresolved. That is the point: a new style
+   * should start by telling you what it does not yet know, so preflight blocks
+   * export until a person fills it in. Seeding plausible defaults is what makes
+   * a demo look finished and a product lie.
+   */
+  ['POST', /^\/api\/styles$/, ({ db, user, body }) => {
+    require_(user, CREATE, 'create a style')
+    const collectionId = String(body?.collectionId ?? '').trim()
+    const name = String(body?.name ?? '').trim()
+    const categoryKey = String(body?.categoryKey ?? '').trim()
+    if (!name) throw new HttpError(400, 'A style needs a name.')
+    if (!db.prepare('SELECT id FROM collections WHERE id = ?').get(collectionId)) {
+      throw new HttpError(404, `No season ${collectionId}`)
+    }
+    const tpl = CATEGORY_TEMPLATES.find(t => t.key === categoryKey)
+    if (!tpl) throw new HttpError(400, `Unknown category "${categoryKey}".`)
+
+    const id = String(body?.id ?? '').trim()
+      || `${categoryKey.slice(0, 2).toUpperCase()}-${randomUUID().slice(0, 4).toUpperCase()}`
+    if (db.prepare('SELECT id FROM styles WHERE id = ?').get(id)) {
+      throw new HttpError(409, `A style with id ${id} already exists.`)
+    }
+
+    const now = new Date().toISOString()
+    db.prepare(`INSERT INTO styles
+      (id, collection_id, name, category, category_key, status, version, base_size,
+       units, size_range, owner, colorways) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
+      .run(id, collectionId, name, tpl.label, tpl.key, 'Draft', 1,
+           null,                                   // base size is a human decision
+           String(body?.units ?? 'cm'),
+           JSON.stringify(body?.sizeRange ?? []), user!.name,
+           JSON.stringify(body?.colorways ?? []))
+
+    tpl.requiredFields.forEach((f, i) => {
+      db.prepare(`INSERT INTO style_fields
+        (id, style_id, section, label, value, unit, source, created_by, created_at,
+         ai_involved, confidence, approval, critical, note, ord)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+        .run(`f-${i}-${randomUUID().slice(0, 4)}`, id, f.section, f.label, '', null,
+             'human', user!.name, now, 0, 'n/a', 'Unresolved', f.critical ? 1 : 0,
+             'Not yet decided.', i)
+    })
+
+    tpl.requiredPoms.forEach((p, i) => {
+      db.prepare(`INSERT INTO poms
+        (row_id, style_id, code, name, method, tolerance, unit, sizes,
+         source, created_by, created_at, ai_involved, confidence, approval, critical, note, ord)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+        .run(randomUUID(), id, p.code, p.name, '', '', String(body?.units ?? 'cm'),
+             JSON.stringify({}), 'human', user!.name, now, 0, 'n/a', 'Unresolved', 1,
+             'Measurement method and tolerance not yet set.', i)
+    })
+
+    for (const g of GATE_ORDER) {
+      db.prepare(`INSERT INTO gates (key, style_id, label, approver, approved, approved_at, reason)
+                  VALUES (?,?,?,?,?,?,?)`)
+        .run(g, id, GATE_LABEL[g], 'Unassigned', 0, null, null)
+    }
+
+    audit(db, { actor: user!.name, action: 'Style created', target: id })
+    return { style: readStyle(db, id) }
+  }],
+
   // D-01: a technical designer signs off the category schema.
   ['POST', /^\/api\/categories\/([^/]+)\/signoff$/, ({ db, user, params }) => {
     require_(user, ['technical'], 'sign off a category schema')
@@ -551,7 +674,10 @@ export async function handleApi(req: IncomingMessage, res: ServerResponse, db: D
     const body = req.method === 'GET' ? {} : await readBody(req)
     const token = cookie(req, 'sid') ?? body?.token ?? null
     const user = userForToken(db, token)
-    const result = await handler({ db, user, body, params, setCookie: v => cookies.push(v) })
+    const result = await handler({
+      db, user, body, params, query: url.searchParams,
+      setCookie: v => cookies.push(v),
+    })
     send(200, result ?? { ok: true }, cookies)
   } catch (e) {
     if (e instanceof HttpError) return send(e.status, { error: e.message }, cookies)

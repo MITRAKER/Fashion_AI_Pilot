@@ -19,6 +19,21 @@ const provCols = (p: Provenance) => [
   p.confidence, p.approval, p.critical ? 1 : 0, p.note ?? null,
 ]
 
+/**
+ * Accounts without the synthetic collection, for an empty workspace (SEED=0).
+ * Someone has to be able to sign in and start a season.
+ */
+export function ensureUsers(db: DB) {
+  const n = db.prepare('SELECT COUNT(*) c FROM users').get() as any
+  if (n.c > 0) return false
+  for (const u of USERS) {
+    const { salt, hash } = hashPassword(u.pw)
+    db.prepare('INSERT INTO users (id, username, name, role, salt, hash) VALUES (?,?,?,?,?,?)')
+      .run(randomUUID(), u.username, u.name, u.role, salt, hash)
+  }
+  return true
+}
+
 export function seedIfEmpty(db: DB) {
   const n = db.prepare('SELECT COUNT(*) c FROM collections').get() as any
   if (n.c > 0) return false

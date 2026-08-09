@@ -522,3 +522,80 @@ describe('category schema sign-off (D-01)', () => {
     assert.ok(!findingsAfter.some(f => f.message.includes('has not been signed off')))
   })
 })
+
+/* ------------------------------------------------- starting real work (CRUD) */
+// The demonstrator could only ever show the seeded synthetic collection. These
+// cover the part that makes it a product: putting your own work in.
+
+describe('creating a season and a style', () => {
+  test('a season starts with the full plan and nothing approved', async () => {
+    const sid = await login('mitra')
+    const r = await call('POST', '/api/collections', {
+      sid, body: { id: 'AW28-TEST', brand: 'Two Rivers', season: 'Autumn/Winter', year: 2028 },
+    })
+    assert.equal(r.status, 200)
+    const c = r.body.collection
+    assert.equal(c.id, 'AW28-TEST')
+    assert.equal(c.stages.length, 15, 'the 52-week plan is fifteen stages')
+    assert.equal(c.styles.length, 0, 'a new season has no styles')
+    assert.ok(c.stages.every((s: any) => s.status === 'Not Started'),
+      'nothing is pre-completed')
+    assert.equal(c.stages.filter((s: any) => s.gate).length, 4, 'four approval gates')
+  })
+
+  test('the new season is visible in state, alongside the seeded one', async () => {
+    const sid = await login('mitra')
+    const r = await call('GET', '/api/state?collection=AW28-TEST', { sid })
+    assert.equal(r.status, 200)
+    assert.equal(r.body.collection.id, 'AW28-TEST')
+    assert.ok(r.body.seasons.length >= 2, 'state lists every season')
+  })
+
+  test('a new style declares what it does not know rather than inventing it', async () => {
+    const sid = await login('mitra')
+    const r = await call('POST', '/api/styles', {
+      sid, body: { collectionId: 'AW28-TEST', name: 'Wrap dress', categoryKey: 'woven-dress' },
+    })
+    assert.equal(r.status, 200)
+    const s = r.body.style
+    assert.equal(s.status, 'Draft')
+    assert.equal(s.baseSize, null, 'base size is a human decision, never guessed')
+    assert.ok(s.fields.length > 0)
+    assert.ok(s.fields.every((f: any) => f.value === '' && f.approval === 'Unresolved'),
+      'every required field starts empty and Unresolved')
+    assert.ok(s.poms.every((p: any) => p.approval === 'Unresolved'))
+    assert.equal(s.gates.length, 4)
+    assert.ok(s.gates.every((g: any) => !g.approved), 'no gate is pre-approved')
+  })
+
+  test('a brand-new style therefore fails preflight and cannot be exported', async () => {
+    const sid = await login('mitra')
+    const r = await call('GET', '/api/state?collection=AW28-TEST', { sid })
+    const style = r.body.collection.styles.find((x: any) => x.name === 'Wrap dress')
+    const findings = r.body.preflight[style.id]
+    assert.ok(summarise(findings).blockers > 0,
+      'an empty style must block export, not look finished')
+  })
+
+  test('a viewer may not start a season or a style', async () => {
+    const sid = await login('viewer')
+    const a = await call('POST', '/api/collections', {
+      sid, body: { brand: 'X', season: 'Resort', year: 2029 },
+    })
+    assert.equal(a.status, 403)
+    const b = await call('POST', '/api/styles', {
+      sid, body: { collectionId: 'AW28-TEST', name: 'Nope', categoryKey: 'woven-dress' },
+    })
+    assert.equal(b.status, 403)
+  })
+
+  test('rejects a season with no name and a style in a season that does not exist', async () => {
+    const sid = await login('mitra')
+    assert.equal((await call('POST', '/api/collections', {
+      sid, body: { brand: 'Two Rivers', season: '', year: 2028 } })).status, 400)
+    assert.equal((await call('POST', '/api/styles', {
+      sid, body: { collectionId: 'NOPE', name: 'X', categoryKey: 'woven-dress' } })).status, 404)
+    assert.equal((await call('POST', '/api/styles', {
+      sid, body: { collectionId: 'AW28-TEST', name: 'X', categoryKey: 'nonsense' } })).status, 400)
+  })
+})
