@@ -604,6 +604,21 @@ const ROUTES: [string, RegExp, Handler][] = [
     return { templates: readTemplates(db) }
   }],
 
+  // Draft mood-board persistence for the wireframe portal. Stored server-side
+  // because project rules forbid browser localStorage/sessionStorage.
+  ['GET', /^\/api\/board-state\/([^/]+)$/, ({ db, params }) => {
+    const r = db.prepare('SELECT json FROM board_state WHERE id = ?').get(params[0]) as any
+    return r ? JSON.parse(r.json) : { tiles: [] }
+  }],
+
+  ['PUT', /^\/api\/board-state\/([^/]+)$/, ({ db, params, body }) => {
+    if (!Array.isArray(body?.tiles)) throw new HttpError(400, 'tiles array required')
+    db.prepare(`INSERT INTO board_state (id, json, updated_at) VALUES (?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET json = excluded.json, updated_at = excluded.updated_at`)
+      .run(params[0], JSON.stringify({ tiles: body.tiles }), new Date().toISOString())
+    return { ok: true }
+  }],
+
   // Portal image generation. The key is read from the server environment only —
   // it must never appear in a response body or in client code.
   // With reference images attached (multipart) we call /v1/images/edits so the

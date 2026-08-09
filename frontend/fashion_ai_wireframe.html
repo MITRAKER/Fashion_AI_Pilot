@@ -866,8 +866,8 @@ function addColor(){if(portalLocked)return;const hex=document.getElementById('co
 const name=(document.getElementById('colorname').value.trim()||'UNNAMED').replace(/[^\w\s#-]/g,'').toUpperCase();
 addChipTile('color','COLOR \u00b7 '+name+' \u00b7 '+hex,hex);
 toast('Color chip added: '+name+' '+hex+' \u2014 hex only, no matching claim.');document.getElementById('colorname').value='';}
-function setAsBoard(t){document.querySelectorAll('#board-v2 .tile.is-board').forEach(x=>x.classList.remove('is-board'));t.classList.add('is-board');
-const h=document.getElementById('stage3-hero');if(h){h.style.background=t.style.background;h.style.backgroundImage=t.style.backgroundImage;h.style.backgroundSize='cover';h.style.backgroundPosition='center';const c=document.getElementById('stage3-hero-cap');if(c)c.textContent='BOARD \u00b7 promoted from portal v2 \u00b7 '+tileIdent(t);}
+function syncHero(t){const h=document.getElementById('stage3-hero');if(h){h.style.background=t.style.background;h.style.backgroundImage=t.style.backgroundImage;h.style.backgroundSize='cover';h.style.backgroundPosition='center';const c=document.getElementById('stage3-hero-cap');if(c)c.textContent='BOARD \u00b7 promoted from portal v2 \u00b7 '+tileIdent(t);}}
+function setAsBoard(t){document.querySelectorAll('#board-v2 .tile.is-board').forEach(x=>x.classList.remove('is-board'));t.classList.add('is-board');syncHero(t);
 toast('Set as board: "'+tileIdent(t)+'" is now the working board hero. Stage 3 "Complete" points here. (VER-001)');}
 document.querySelectorAll('#board-v2 .tile').forEach(attachSetBoard);
 let portalLocked=false;
@@ -946,6 +946,26 @@ document.getElementById('lightbox').addEventListener('wheel',e=>{e.preventDefaul
  i.addEventListener('mousedown',e=>{e.preventDefault();lbDrag={x:e.clientX-lbX,y:e.clientY-lbY};i.style.cursor='grabbing';});
  window.addEventListener('mousemove',e=>{if(lbDrag){lbX=e.clientX-lbDrag.x;lbY=e.clientY-lbDrag.y;lbApply();}});
  window.addEventListener('mouseup',()=>{lbDrag=null;i.style.cursor='grab';});})();
+
+/* Draft board persistence. The board used to live only in the page DOM, so any
+   reload reset it to the seed tiles. State now round-trips through the server
+   (SQLite via /api/board-state) — browser localStorage is off-limits per project
+   rules. A MutationObserver catches every board change (tiles added/removed,
+   REF/BOARD class flips, style edits) and saves debounced; restore runs at load. */
+const BOARD_KEY='v2-draft';let boardSaveT=null,boardRestoring=false;
+function boardSerialize(){return Array.from(document.querySelectorAll('#board-v2 .tile')).map(t=>{const c=t.cloneNode(true);c.querySelectorAll('.setboard,.removetile').forEach(x=>x.remove());return c.outerHTML;});}
+function boardSave(){if(boardRestoring)return;clearTimeout(boardSaveT);boardSaveT=setTimeout(()=>{
+ fetch('/api/board-state/'+BOARD_KEY,{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({tiles:boardSerialize()})}).catch(()=>{});},400);}
+async function boardRestore(){boardRestoring=true;try{
+ const r=await fetch('/api/board-state/'+BOARD_KEY);if(!r.ok)return;
+ const d=await r.json();if(!Array.isArray(d.tiles)||!d.tiles.length)return;
+ const b=document.getElementById('board-v2');b.innerHTML=d.tiles.join('');
+ b.querySelectorAll('.tile').forEach(t=>{t.onclick=()=>refToggle(t);attachSetBoard(t);});
+ const bt=b.querySelector('.tile.is-board');if(bt)syncHero(bt);
+ document.getElementById('refcount').textContent=b.querySelectorAll('.tile.sel-ref').length+' reference tiles selected';
+}catch(e){}finally{boardRestoring=false;}}
+new MutationObserver(()=>boardSave()).observe(document.getElementById('board-v2'),{childList:true,subtree:true,attributes:true,attributeFilter:['class','style']});
+boardRestore();
 
 </script>
 </body>

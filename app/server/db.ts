@@ -97,6 +97,9 @@ CREATE TABLE IF NOT EXISTS audit (
 CREATE TABLE IF NOT EXISTS model_invocations (
   id TEXT PRIMARY KEY, at TEXT, provider TEXT, model TEXT, feature TEXT,
   latency_ms INTEGER, cost_usd REAL, user_action TEXT, style_id TEXT);
+
+CREATE TABLE IF NOT EXISTS board_state (
+  id TEXT PRIMARY KEY, json TEXT NOT NULL, updated_at TEXT NOT NULL);
 `
 
 export type DB = DatabaseSync

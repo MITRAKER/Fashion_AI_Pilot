@@ -30,6 +30,12 @@ function wireframeRoute() {
   return {
     name: 'serve-wireframe',
     configureServer(server: any) {
+      // The wireframe is outside vite's module graph, so it gets no HMR —
+      // without this watch, open tabs keep running stale code after edits.
+      server.watcher.add(file)
+      server.watcher.on('change', (p: string) => {
+        if (resolve(p) === file) server.ws.send({ type: 'full-reload' })
+      })
       server.middlewares.use('/wireframe', (_req: any, res: any) => {
         try {
           res.setHeader('content-type', 'text/html')
