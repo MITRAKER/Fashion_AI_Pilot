@@ -702,7 +702,7 @@ tr:hover td{background:#fafafc}
 
       <div class="genpanel" id="genpanel">
         <b style="font-size:13px;letter-spacing:.08em">GENERATE AN ELEMENT</b>
-        <p style="font-size:12px;color:var(--graphite);margin:6px 0 10px">The prompt travels WITH the reference tiles you selected above and the season's structured brief (palette, exclusions, rights rules). Provider is configurable &mdash; keys live server-side, never here. (AI-001, CRE-001)</p>
+        <p style="font-size:12px;color:var(--graphite);margin:6px 0 10px">The prompt travels WITH the actual reference images you selected &mdash; REF tiles are sent as real image inputs, alongside the season's structured brief (palette, exclusions, rights rules). Provider is configurable &mdash; keys live server-side, never here. (AI-001, CRE-001)</p>
         <textarea id="genprompt" placeholder="e.g. draped trench silhouette in bone faille, morning light, quiet architecture&hellip;"></textarea>
         <div class="genrow">
           <span class="mono" style="font-size:10px">PROVIDER</span>
@@ -872,14 +872,30 @@ go('portal',null);}
 function sealedTouch(){toast('v1 is sealed \u2014 touching an approved board opens work in a draft. Routing you to the v2 draft. (VER-001)');openPortalVersion('v2');}
 function portalUpload(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{const b=document.getElementById('board-v2');const t=document.createElement('div');t.className='tile';t.style.backgroundImage='url('+e.target.result+')';t.onclick=()=>refToggle(t);t.innerHTML='<span class="refmark">REF</span><span class="prov">UPLOADED &middot; designer-declared &middot; '+f.name.slice(0,18)+'</span>';b.appendChild(t);attachSetBoard(t);toast('Element added from your computer. Provenance chip attached: UPLOADED, rights designer-declared. (REF-002)');};r.readAsDataURL(f);}
 function portalSimTile(n){const b=document.getElementById('board-v2');const t=document.createElement('div');t.className='tile';t.style.background='linear-gradient(150deg,#E8E0D0 20%,#b9c6ee 20% 45%,#6b7a5a 45% 70%,#1F1F1F 70%)';t.onclick=()=>refToggle(t);t.innerHTML='<span class="refmark">REF</span><span class="prov">AI-GENERATED &middot; provider via config &middot; '+n+' refs &middot; prompt on file</span>';b.appendChild(t);attachSetBoard(t);}
-async function portalGenerate(){const p=document.getElementById('genprompt').value.trim();const n=document.querySelectorAll('#board-v2 .tile.sel-ref').length;if(!p){toast('Write a prompt first - it travels with your selected reference tiles.');return;}
-/* Real endpoint first; any failure (503 = no key, or opened standalone with no server) falls back to the simulated tile. */
+async function tileBlob(t){
+ const m=(t.style.backgroundImage||'').match(/url\(["']?([^"')]+)["']?\)/);
+ const c=document.createElement('canvas');c.width=c.height=1024;const x=c.getContext('2d');
+ if(m){const img=new Image();img.src=m[1];await img.decode();const s=Math.max(1024/img.width,1024/img.height);x.drawImage(img,(1024-img.width*s)/2,(1024-img.height*s)/2,img.width*s,img.height*s);}
+ else{const st=(t.getAttribute('style')||'').replace(/"/g,"'");
+  const svg='<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml" style="width:1024px;height:1024px;'+st+'"></div></foreignObject></svg>';
+  const img=new Image();img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);await img.decode();x.drawImage(img,0,0);}
+ return new Promise(r=>c.toBlob(r,'image/png'));}
+async function portalGenerate(){const p=document.getElementById('genprompt').value.trim();const refs=Array.from(document.querySelectorAll('#board-v2 .tile.sel-ref'));const n=refs.length;if(!p){toast('Write a prompt first - it travels with your selected reference images.');return;}
+/* Real endpoint first; any failure (503 = no key, or opened standalone with no server) falls back to the simulated tile.
+   With REF tiles selected, the actual image pixels travel as multipart -> /v1/images/edits. */
 try{
- const r=await fetch('/api/generate-image',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({prompt:p,referenceNote:n+' reference tiles selected'})});
+ let r;
+ if(n){
+  const fd=new FormData();fd.append('prompt',p);
+  for(const rt of refs.slice(0,16)){fd.append('image',await tileBlob(rt),'reference.png');}
+  r=await fetch('/api/generate-image',{method:'POST',body:fd});
+ }else{
+  r=await fetch('/api/generate-image',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({prompt:p})});
+ }
  if(!r.ok)throw new Error('http '+r.status);
  const d=await r.json();
- const b=document.getElementById('board-v2');const t=document.createElement('div');t.className='tile';t.style.backgroundImage='url('+d.image+')';t.style.backgroundSize='cover';t.onclick=()=>refToggle(t);t.innerHTML='<span class="refmark">REF</span><span class="prov">AI-GENERATED &middot; '+(d.provenance&&d.provenance.model||'provider')+' &middot; '+n+' refs &middot; prompt on file</span>';b.appendChild(t);attachSetBoard(t);
- toast('Generated via '+(d.provenance&&d.provenance.model||'configured provider')+'. Prompt + '+n+' reference tiles on file. Tile enters as DRAFT, kept only if you keep it. (CRE-001, SKT-001)');
+ const b=document.getElementById('board-v2');const t=document.createElement('div');t.className='tile';t.style.backgroundImage='url('+d.image+')';t.style.backgroundSize='cover';t.onclick=()=>refToggle(t);t.innerHTML='<span class="refmark">REF</span><span class="prov">AI-GENERATED &middot; '+(d.provenance&&d.provenance.model||'provider')+' &middot; '+n+' ref images attached &middot; prompt on file</span>';b.appendChild(t);attachSetBoard(t);
+ toast('Generated via '+(d.provenance&&d.provenance.model||'configured provider')+'. Prompt + '+n+' reference image'+(n===1?'':'s')+' sent to the provider. Tile enters as DRAFT, kept only if you keep it. (CRE-001, SKT-001)');
 }catch(e){
  portalSimTile(n);
  toast('provider not configured — simulated');

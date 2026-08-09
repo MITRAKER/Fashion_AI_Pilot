@@ -606,6 +606,8 @@ const ROUTES: [string, RegExp, Handler][] = [
 
   // Portal image generation. The key is read from the server environment only —
   // it must never appear in a response body or in client code.
+  // With reference images attached (multipart) we call /v1/images/edits so the
+  // actual pixels travel with the prompt; text-only requests use /generations.
   ['POST', /^\/api\/generate-image$/, async ({ body }) => {
     const key = process.env.OPENAI_API_KEY
     if (!key) throw new HttpError(503, 'provider not configured')
@@ -613,18 +615,36 @@ const ROUTES: [string, RegExp, Handler][] = [
     const prompt = typeof body?.prompt === 'string' ? body.prompt.trim() : ''
     if (!prompt) throw new HttpError(400, 'prompt is required')
     const referenceNote = typeof body?.referenceNote === 'string' ? body.referenceNote.trim() : ''
+    const images: Blob[] = Array.isArray(body?.images)
+      ? body.images.filter((i: unknown) => i instanceof Blob).slice(0, 16)
+      : []
 
     const model = 'gpt-image-1'
-    const upstream = await fetch('https://api.openai.com/v1/images/generations', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
-      body: JSON.stringify({
-        model,
-        prompt: referenceNote ? `${prompt}\n\nReference note: ${referenceNote}` : prompt,
-        size: '1024x1024',
-        n: 1,
-      }),
-    })
+    let upstream: Response
+    if (images.length) {
+      const fd = new FormData()
+      fd.append('model', model)
+      fd.append('prompt', prompt)
+      fd.append('size', '1024x1024')
+      fd.append('n', '1')
+      for (const img of images) fd.append('image[]', img, 'reference.png')
+      upstream = await fetch('https://api.openai.com/v1/images/edits', {
+        method: 'POST',
+        headers: { authorization: `Bearer ${key}` },
+        body: fd,
+      })
+    } else {
+      upstream = await fetch('https://api.openai.com/v1/images/generations', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
+        body: JSON.stringify({
+          model,
+          prompt: referenceNote ? `${prompt}\n\nReference note: ${referenceNote}` : prompt,
+          size: '1024x1024',
+          n: 1,
+        }),
+      })
+    }
     if (!upstream.ok) {
       // Do not relay the upstream body — provider errors can echo request headers.
       throw new HttpError(502, `image provider error (${upstream.status})`)
@@ -635,7 +655,7 @@ const ROUTES: [string, RegExp, Handler][] = [
 
     return {
       image: `data:image/png;base64,${b64}`,
-      provenance: { model, promptOnFile: true },
+      provenance: { model, promptOnFile: true, referenceImages: images.length },
     }
   }],
 ]
@@ -645,8 +665,18 @@ const ROUTES: [string, RegExp, Handler][] = [
 const readBody = (req: IncomingMessage) => new Promise<any>(resolve => {
   const chunks: Buffer[] = []
   req.on('data', c => chunks.push(c as Buffer))
-  req.on('end', () => {
-    const raw = Buffer.concat(chunks).toString('utf8')
+  req.on('end', async () => {
+    const buf = Buffer.concat(chunks)
+    const ct = req.headers['content-type'] ?? ''
+    if (ct.startsWith('multipart/form-data')) {
+      try {
+        const fd = await new Response(buf, { headers: { 'content-type': ct } }).formData()
+        const images: File[] = []
+        for (const [k, v] of fd) if (k === 'image' && typeof v !== 'string') images.push(v)
+        return resolve({ prompt: fd.get('prompt') ?? '', images })
+      } catch { return resolve({}) }
+    }
+    const raw = buf.toString('utf8')
     try { resolve(raw ? JSON.parse(raw) : {}) } catch { resolve({}) }
   })
 })
