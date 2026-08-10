@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   AuditEvent, CategoryTemplate, Collection, FactoryCorrection, ModelInvocation, Proposal,
   User, ValidationFinding,
@@ -22,11 +22,13 @@ interface State {
   proposals: Proposal[]
   templates: CategoryTemplate[]
   preflight: Record<string, ValidationFinding[]>
+  /** Every season in the workspace, not just the one being viewed. */
+  seasons: { id: string; brand: string; season: string; year: number }[]
 }
 
 const EMPTY: State = {
   user: null, collection: null, audit: [], invocations: [],
-  corrections: [], proposals: [], templates: [], preflight: {},
+  corrections: [], proposals: [], templates: [], preflight: {}, seasons: [],
 }
 
 interface Ctx extends State {
@@ -47,6 +49,14 @@ interface Ctx extends State {
   }) => Promise<void>
   acceptProposal: (styleId: string, id: string) => Promise<void>
   dismissProposal: (styleId: string, id: string, reason?: string) => Promise<void>
+  /** Start a real season, and add a style to one. */
+  createSeason: (input: {
+    brand: string; season: string; year: number; id?: string
+  }) => Promise<void>
+  createStyle: (input: {
+    collectionId: string; name: string; categoryKey: string; id?: string
+  }) => Promise<void>
+  openSeason: (id: string) => Promise<void>
 }
 
 export interface PromoteInput {
@@ -65,7 +75,12 @@ async function api(method: string, path: string, body?: unknown) {
     body: method === 'GET' ? undefined : JSON.stringify(body ?? {}),
   })
   const payload = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error(payload?.error ?? `${res.status} ${res.statusText}`)
+  if (!res.ok) {
+    const err = new Error(payload?.error ?? `${res.status} ${res.statusText}`) as
+      Error & { status?: number }
+    err.status = res.status
+    throw err
+  }
   return payload
 }
 
@@ -76,18 +91,35 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<State>(EMPTY)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Which season is open. A ref, not state: refresh() must stay referentially
+  // stable or the effect that calls it re-fires on every selection change.
+  const seasonId = useRef<string | null>(null)
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (id?: string | null) => {
+    if (id !== undefined) seasonId.current = id
+    const want = seasonId.current
     try {
-      const s = await api('GET', '/api/state')
+      const s = await api('GET', '/api/state' + (want ? `?collection=${encodeURIComponent(want)}` : ''))
       setState({
         user: s.user, collection: s.collection, audit: s.audit,
         invocations: s.invocations, corrections: s.corrections,
         proposals: s.proposals ?? [],
         templates: s.templates, preflight: s.preflight,
+        seasons: s.seasons ?? [],
       })
-    } catch {
-      // Static deployment fallback (GitHub Pages / Vercel / Static host)
+    } catch (e) {
+      // A 401 is not a missing API — it is a real server saying "sign in". Falling
+      // back to the bundled demo data here was the bug: the app looked signed in
+      // as N. Walker, showed synthetic styles as though they were real, and then
+      // 401'd on every write. Nothing the user did could persist and nothing said
+      // why. Show the login screen instead.
+      if ((e as { status?: number }).status) {
+        setState(EMPTY)
+        setLoading(false)
+        return
+      }
+      // Genuinely no API behind us — a static host. Then, and only then, the
+      // bundled demonstrator.
       const fallbackPreflight: Record<string, ValidationFinding[]> = {}
       seedCollection.styles.forEach(s => {
         fallbackPreflight[s.id] = runPreflight(s)
@@ -103,6 +135,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         corrections: [],
         templates: [],
         preflight: fallbackPreflight,
+        seasons: [{ id: seedCollection.id, brand: seedCollection.brand,
+                    season: seedCollection.season, year: seedCollection.year }],
       })
     } finally {
       setLoading(false)
@@ -130,9 +164,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       try {
         await api('POST', '/api/login', { username, password })
         await refresh()
-      } catch {
-        // Fallback login for static host
-        await refresh()
+      } catch (e) {
+        // Same bug as refresh(): swallowing this meant a wrong password quietly
+        // "worked" and dropped you into the bundled demo. A real 401 is a real
+        // failure and has to be shown.
+        const status = (e as { status?: number }).status
+        if (status) { setError((e as Error).message); return }
+        await refresh()   // no API at all — static host
       }
     },
     async logout() {
@@ -172,6 +210,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       mutate(() => api('POST', `/api/styles/${styleId}/proposals/${id}/accept`)),
     dismissProposal: (styleId, id, reason) =>
       mutate(() => api('POST', `/api/styles/${styleId}/proposals/${id}/dismiss`, { reason })),
+
+    createSeason: input => mutate(() => api('POST', '/api/collections', input)),
+    createStyle: input => mutate(() => api('POST', '/api/styles', input)),
+    async openSeason(id) {
+      setError(null)
+      await refresh(id)
+    },
   }), [state, loading, error, mutate, refresh])
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>

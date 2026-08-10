@@ -1,4 +1,5 @@
 import { useStore } from '../store'
+import { NewStyle } from './StartWork'
 import { summarise } from '../../shared/rules.ts'
 import { Badge, FlatCanvas, MoodCanvas, PackBadge, PresentationCanvas, StageBadge } from './ui'
 import { SeasonCalendar } from './SeasonCalendar'
@@ -15,12 +16,15 @@ export function Dashboard({ onOpen }: { onOpen: (id: string) => void }) {
 
   return (
     <>
-      <div className="page-head">
+      <div className="page-head" style={{ display: 'flex', alignItems: 'flex-start', gap: 20 }}>
+        <div style={{ flex: 1 }}>
         <h2>{collection.season} {collection.year}</h2>
         <p>
           {collection.brand} · {collection.market} · ship {collection.shipWindow} ·
           owner {collection.owner}. Customer: {collection.customer}.
         </p>
+        </div>
+        <NewStyle />
       </div>
 
       <SeasonCalendar />
@@ -61,7 +65,7 @@ export function Dashboard({ onOpen }: { onOpen: (id: string) => void }) {
         <div className="card">
           <h3>Season calendar</h3>
           <p className="sub">
-            15 stages across a 52-week Spring/Summer template. Gold rows are approval gates —
+            15 stages across the 52 weeks of {collection.season} {collection.year}. Gold rows are approval gates —
             a stage cannot start until its upstream gate is satisfied or an override is recorded.
           </p>
           <div>
