@@ -641,6 +641,37 @@ const ROUTES: [string, RegExp, Handler][] = [
     return { id }
   }],
 
+  // Board version history: sealed versions are immutable snapshots with a why-line.
+  // Current draft always lives under 'v{N}-draft'. When approved, it's saved as
+  // 'v{N}-sealed' and a new 'v{N+1}-draft' is created for the next round.
+  ['GET', /^\/api\/board-versions$/, ({ db }) => {
+    const rows = db.prepare('SELECT id, json, updated_at FROM board_state WHERE id LIKE \'%-sealed\' ORDER BY updated_at DESC')
+      .all() as any[]
+    return rows.map(r => {
+      const parsed = JSON.parse(r.json)
+      return {
+        id: r.id, createdAt: r.updated_at, whyLine: parsed.whyLine,
+        tileCount: (parsed.tiles || []).length,
+      }
+    })
+  }],
+
+  ['POST', /^\/api\/board-version$/, ({ db, body }) => {
+    const tiles = body?.tiles
+    const whyLine = String(body?.whyLine ?? '').trim()
+    if (!Array.isArray(tiles)) throw new HttpError(400, 'tiles array required')
+    if (!whyLine) throw new HttpError(400, 'why-line is required')
+    const maxN = (db.prepare(`SELECT id FROM board_state WHERE id LIKE 'v%-sealed' ORDER BY id DESC LIMIT 1`)
+      .get() as any)?.id?.match(/v(\d+)/)?.[1] || '0'
+    const nextN = String(Number(maxN) + 1)
+    const versionId = 'v' + nextN + '-sealed'
+    db.prepare(`INSERT INTO board_state (id, json, updated_at) VALUES (?, ?, ?)`)
+      .run(versionId, JSON.stringify({ tiles, whyLine }), new Date().toISOString())
+    // Clear the old draft so it doesn't interfere
+    db.prepare('DELETE FROM board_state WHERE id = ?').run('v' + maxN + '-draft')
+    return { versionId }
+  }],
+
   // Portal image generation. The key is read from the server environment only —
   // it must never appear in a response body or in client code.
   // With reference images attached (multipart) we call /v1/images/edits so the

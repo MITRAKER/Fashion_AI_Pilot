@@ -661,10 +661,7 @@ tr:hover td{background:#fafafc}
       </div>
       <div class="card">
         <h3>Version rail &middot; the archive</h3>
-        <div class="vrail">
-          <div class="vcard"><div class="vthumb"></div><div class="vmeta"><b>v1 &middot; APPROVED</b><br>M. Chen &middot; Wk 6<br>SEALED &middot; view-only</div><button class="btn ghost sm" style="margin-top:8px" onclick="openPortalVersion('v1')">View in portal</button></div>
-          <div class="vcard current"><div class="vthumb" style="filter:hue-rotate(20deg)"></div><div class="vmeta"><b>v2 &middot; DRAFT</b><br>opened by B. Osei &middot; Wk 9<br>why: "reference oversaturated<br>in market"</div><button class="btn sm" style="margin-top:8px" onclick="openPortalVersion('v2')">Open in portal</button></div>
-        </div>
+        <div class="vrail" id="vrail"></div>
         <p style="font-size:12px;color:var(--graphite);margin-top:12px">Touching an approved board seals it automatically and opens a draft copy. Designers play freely; the system files the paperwork. Downstream stages show amber until v2 is approved.</p>
       </div>
     </div>
@@ -790,6 +787,7 @@ function go(pg,btn){
   document.getElementById('pg-'+pg).classList.add('on');
   document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
   if(btn) btn.classList.add('active');
+  if(pg==='stage3')renderVersionRail();
   window.scrollTo({top:0});
 }
 function navBtn(pg){return document.querySelector('nav button[data-pg="'+pg+'"]')}
@@ -887,7 +885,8 @@ function removeSelected(){if(portalLocked)return;const sel=document.querySelecto
 if(!sel.length){toast('No tiles marked REF \u2014 click tiles to mark them first.');return;}
 if(!confirm('Remove '+sel.length+' selected tile'+(sel.length>1?'s':'')+'?'))return;
 let hadBoard=false;sel.forEach(t=>{if(t.classList.contains('is-board'))hadBoard=true;t.remove();});
-document.getElementById('refcount').textContent='0 reference tiles selected';
+const remaining=document.querySelectorAll('#board-v2 .tile.sel-ref').length;
+document.getElementById('refcount').textContent=remaining+' reference tile'+(remaining===1?'':'s')+' selected';
 if(hadBoard)clearBoardPromotion();else toast('Removed '+sel.length+' tile'+(sel.length>1?'s':'')+' from draft. v1 remains sealed and untouched. (VER-001)');}
 function togglePanel(id){if(portalLocked)return;['fabricpanel','colorpanel','librarypanel'].forEach(p=>{const el=document.getElementById(p);el.style.display=(p===id&&el.style.display==='none')?'flex':'none';});
 if(id==='librarypanel'&&document.getElementById('librarypanel').style.display!=='none')libRender();}
@@ -946,16 +945,16 @@ function setAsBoard(t){document.querySelectorAll('#board-v2 .tile.is-board').for
 toast('Set as board: "'+tileIdent(t)+'" is now the working board hero. Stage 3 "Complete" points here. (VER-001)');}
 document.querySelectorAll('#board-v2 .tile').forEach(attachSetBoard);
 let portalLocked=false;
-function openPortalVersion(v){portalLocked=(v==='v1');
+function openPortalVersion(v){portalLocked=(v==='v1'||v!=='draft');
 const sealed=document.getElementById('board-sealed');
 if(portalLocked&&!sealed.dataset.filled){document.querySelectorAll('#board-v1 .tile').forEach(x=>{const c=x.cloneNode(true);c.onclick=sealedTouch;c.style.cursor='pointer';sealed.appendChild(c);});sealed.dataset.filled='1';}
-document.getElementById('board-v2').style.display=portalLocked?'none':'';
-sealed.style.display=portalLocked?'':'none';
-document.getElementById('portalbar').style.display=portalLocked?'none':'';
-document.getElementById('sealedbar').style.display=portalLocked?'':'none';
+document.getElementById('board-v2').style.display=(v==='draft')?'':'none';
+sealed.style.display=(v==='draft')?'none':'';
+document.getElementById('portalbar').style.display=(v==='draft')?'':'none';
+document.getElementById('sealedbar').style.display=(v==='draft')?'none':'';
 if(portalLocked){document.getElementById('fabricpanel').style.display='none';document.getElementById('colorpanel').style.display='none';document.getElementById('librarypanel').style.display='none';}
-document.getElementById('genpanel').style.display=portalLocked?'none':'';
-document.getElementById('approvecard').style.display=portalLocked?'none':'';
+document.getElementById('genpanel').style.display=(v==='draft')?'':'none';
+document.getElementById('approvecard').style.display=(v==='draft')?'':'none';
 document.getElementById('portalcrumb').textContent=portalLocked?'SS27 / Stage 3 / Portal / v1 sealed':'SS27 / Stage 3 / Portal / v2 draft';
 document.getElementById('portalbanner').innerHTML=portalLocked
  ?'<b>v1 &middot; APPROVED</b> &mdash; SEALED &middot; view only &middot; signed M. Chen, Wk 6. Any edit opens in the draft &mdash; v1 itself never changes. (VER-001)'
@@ -992,9 +991,72 @@ try{
  portalSimTile(n);
  toast('provider not configured — simulated');
 }}
-function approveV2(){const bt=document.querySelector('#board-v2 .tile.is-board');if(!bt){toast('Select a tile to set as the board first.');return;}
+async function approveV2(){const bt=document.querySelector('#board-v2 .tile.is-board');if(!bt){toast('Select a tile to set as the board first.');return;}
 const w=document.getElementById('whyline').value.trim();if(!w){toast('The "why" line is required - two seasons from now, the archive is the reasoning history of the brand\'s eye.');return;}
-toast('Approving '+tileIdent(bt)+' as the v2 board. Sealed with reason: "'+w+'" - routed to M. Chen for signature. On sign-off: one question follows - reset design gate, or continuity confirmed? Human judgment, logged. (VER-001, section 4.1)');}
+try{
+  const tiles=boardSerialize();
+  const r=await fetch('/api/board-version',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({tiles:tiles,whyLine:w})});
+  if(!r.ok)throw new Error('http '+r.status);
+  const d=await r.json();
+  toast('Approved: "'+tileIdent(bt)+'" sealed as '+d.versionId+'. Routed to M. Chen for signature. New draft is ready for changes. (VER-001)');
+  document.getElementById('whyline').value='';
+  boardRestore();
+}catch(e){
+  toast('Approval failed: '+e.message);
+}}
+
+/* Version rail: display sealed versions from DB plus current draft. */
+async function renderVersionRail(){
+  const rail=document.getElementById('vrail');
+  try{
+    const r=await fetch('/api/board-versions');
+    if(!r.ok)throw new Error('http '+r.status);
+    const sealed=await r.json();
+    rail.innerHTML='';
+    sealed.forEach(v=>{
+      const c=document.createElement('div');c.className='vcard';
+      const t=document.createElement('div');t.className='vthumb';
+      c.appendChild(t);
+      const m=document.createElement('div');m.className='vmeta';
+      const dateStr=new Date(v.createdAt).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+      m.innerHTML='<b>'+v.id+'</b><br>M. Chen<br>'+dateStr+' · SEALED<br><span style="font-size:9px;color:var(--graphite);font-family:var(--mono)">'+v.whyLine.slice(0,40)+'</span>';
+      c.appendChild(m);
+      const btn=document.createElement('button');btn.className='btn ghost sm';btn.style.marginTop='8px';btn.textContent='View in portal';
+      btn.onclick=()=>openSealedVersion(v.id);c.appendChild(btn);
+      rail.appendChild(c);
+    });
+    const draft=document.createElement('div');draft.className='vcard current';
+    const dthumb=document.createElement('div');dthumb.className='vthumb';dthumb.style.filter='hue-rotate(20deg)';draft.appendChild(dthumb);
+    const dmeta=document.createElement('div');dmeta.className='vmeta';
+    const nextN=sealed.length?Number(sealed[0].id.match(/v(\d+)/)[1])+1:2;
+    dmeta.innerHTML='<b>v'+nextN+' &middot; DRAFT</b><br>work in progress<br>unsaved changes auto-preserved';draft.appendChild(dmeta);
+    const dbtn=document.createElement('button');dbtn.className='btn sm';dbtn.style.marginTop='8px';dbtn.textContent='Open in portal';
+    dbtn.onclick=()=>openPortalVersion('draft');draft.appendChild(dbtn);
+    rail.appendChild(draft);
+  }catch(e){
+    rail.innerHTML='<span style="font-size:11px;color:var(--graphite)">version archive unavailable</span>';
+  }
+}
+function openSealedVersion(versionId){
+  const parts=versionId.match(/v(\d+)-sealed/);if(!parts)return;
+  const n=parts[1];portalLocked=true;
+  document.getElementById('board-v2').style.display='none';
+  const sealed=document.getElementById('board-sealed');sealed.style.display='';
+  sealed.innerHTML='';
+  fetch('/api/board-state/'+versionId).then(r=>r.json()).then(d=>{
+    if(d.tiles){
+      sealed.innerHTML=d.tiles.join('');
+      sealed.querySelectorAll('.tile').forEach(t=>{t.onclick=sealedTouch;t.style.cursor='pointer';});
+    }
+  });
+  document.getElementById('portalbar').style.display='none';
+  document.getElementById('sealedbar').style.display='';
+  document.getElementById('fabricpanel').style.display='none';document.getElementById('colorpanel').style.display='none';document.getElementById('librarypanel').style.display='none';
+  document.getElementById('genpanel').style.display='none';document.getElementById('approvecard').style.display='none';
+  document.getElementById('portalcrumb').textContent='SS27 / Stage 3 / Portal / '+versionId;
+  document.getElementById('portalbanner').innerHTML='<b>'+versionId+'</b> &mdash; SEALED &middot; view only &middot; signed M. Chen. Any edit opens a new draft. (VER-001)';
+  go('portal',null);
+}
 
 /* Lightbox: double-click any tile, the promoted hero, or any image to inspect it
    full size. View-only, so it works on sealed boards too. */
@@ -1026,8 +1088,20 @@ document.getElementById('lightbox').addEventListener('wheel',e=>{e.preventDefaul
    reload reset it to the seed tiles. State now round-trips through the server
    (SQLite via /api/board-state) — browser localStorage is off-limits per project
    rules. A MutationObserver catches every board change (tiles added/removed,
-   REF/BOARD class flips, style edits) and saves debounced; restore runs at load. */
-const BOARD_KEY='v2-draft';let boardSaveT=null,boardRestoring=false;
+   REF/BOARD class flips, style edits) and saves debounced; restore runs at load.
+   Version keys are dynamic: v{N}-draft is the working version, v{N}-sealed are frozen. */
+let BOARD_KEY='v1-draft';let boardSaveT=null,boardRestoring=false;
+async function initBoardKey(){
+  try{
+    const r=await fetch('/api/board-versions');
+    if(r.ok){
+      const sealed=await r.json();
+      const maxN=sealed.length?Math.max(...sealed.map(v=>Number(v.id.match(/v(\d+)/)[1]))):0;
+      BOARD_KEY='v'+(maxN+1)+'-draft';
+    }
+  }catch(e){BOARD_KEY='v1-draft';}
+  boardRestore();
+}
 function boardSerialize(){return Array.from(document.querySelectorAll('#board-v2 .tile')).map(t=>{const c=t.cloneNode(true);c.querySelectorAll('.setboard,.removetile,.savelib').forEach(x=>x.remove());return c.outerHTML;});}
 function boardSave(){if(boardRestoring)return;clearTimeout(boardSaveT);boardSaveT=setTimeout(()=>{
  fetch('/api/board-state/'+BOARD_KEY,{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({tiles:boardSerialize()})}).catch(()=>{});},400);}
@@ -1040,7 +1114,7 @@ async function boardRestore(){boardRestoring=true;try{
  document.getElementById('refcount').textContent=b.querySelectorAll('.tile.sel-ref').length+' reference tiles selected';
 }catch(e){}finally{boardRestoring=false;}}
 new MutationObserver(()=>boardSave()).observe(document.getElementById('board-v2'),{childList:true,subtree:true,attributes:true,attributeFilter:['class','style']});
-boardRestore();
+initBoardKey();
 
 </script>
 </body>
