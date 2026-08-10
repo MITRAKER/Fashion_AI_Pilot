@@ -67,8 +67,26 @@ const login = async (username: string, password = 'pilot') => {
 /* ---------------------------------------------------------------------- auth */
 
 describe('authentication', () => {
+  test('refuses to parse a sketch without a session, and a viewer may not either', async () => {
+    const anon = await call('POST', '/api/sketch/parse', {
+      body: { styleId: 'ST-27-011', sourceAsset: 'showroom/assets/flat_sketch_garment_A.png' },
+    })
+    assert.equal(anon.status, 401, 'parsing writes to the style, so it needs a session')
+    const viewer = await call('POST', '/api/sketch/parse', {
+      sid: await login('viewer'),
+      body: { styleId: 'ST-27-011', sourceAsset: 'showroom/assets/flat_sketch_garment_A.png' },
+    })
+    assert.equal(viewer.status, 403, 'read-only means read-only')
+  })
+
+  test('generating imagery requires a session', async () => {
+    const r = await call('POST', '/api/generate-image', { body: { prompt: 'a dress' } })
+    assert.equal(r.status, 401, 'this route spends money; it cannot be anonymous')
+  })
+
   test('parses a sketch into a DRAFT structured response', async () => {
     const r = await call('POST', '/api/sketch/parse', {
+      sid: await login('natalie'),
       body: {
         styleId: 'ST-27-011',
         sourceAsset: 'showroom/assets/flat_sketch_garment_A.png',

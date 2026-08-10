@@ -1,4 +1,20 @@
 import { defineConfig } from 'vite'
+import { createRequire } from 'node:module'
+import { fileURLToPath } from 'node:url'
+
+/**
+ * garment-engine lives outside this repository as a local file: link, so it is
+ * present on Natalie's machine and absent everywhere else. Pre-bundling a
+ * package that is not installed fails the dev server outright, so ask first.
+ */
+const require_ = createRequire(import.meta.url)
+let hasGarmentEngine = false
+try {
+  require_.resolve('garment-engine')
+  hasGarmentEngine = true
+} catch {
+  hasGarmentEngine = false
+}
 
 /**
  * Proxy for museum images.
@@ -63,8 +79,16 @@ export default defineConfig({
   server: { port: 5174, strictPort: true },
   // garment-engine is a linked local CJS package; without esbuild pre-bundling
   // its raw `exports.X = require(...)` reaches the browser and throws
-  // "exports is not defined" in dev.
+  // "exports is not defined" in dev. Only when it is actually installed.
   optimizeDeps: {
-    include: ['garment-engine'],
+    include: hasGarmentEngine ? ['garment-engine'] : [],
+  },
+  resolve: {
+    // Absent package -> a module that exports nulls, so the import resolves and
+    // the caller decides what to do. Without this the dev server fails with
+    // "Failed to resolve import" and the whole style sheet page is dead.
+    alias: hasGarmentEngine ? {} : {
+      'garment-engine': fileURLToPath(new URL('./src/garment-engine-absent.js', import.meta.url)),
+    },
   },
 })

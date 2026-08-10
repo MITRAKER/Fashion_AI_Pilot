@@ -182,7 +182,12 @@ function parseSketchDraft(styleId: string, sourceAsset: string): ParsedSketch {
 
 const ROUTES: [string, RegExp, Handler][] = [
 
-  ['POST', /^\/api\/sketch\/parse$/, ({ db, body }) => {
+  // Writes parsed_sketch onto a style, so it is an edit and is gated like one.
+  // It was reachable with no session at all: anyone who could see the port
+  // could overwrite this field on any style, and nothing recorded that it
+  // happened. Every other mutating route in this file calls require_ and audit.
+  ['POST', /^\/api\/sketch\/parse$/, ({ db, user, body }) => {
+    require_(user, EDIT_ANY, 'parse a sketch onto a style')
     const styleId = String(body?.styleId ?? '').trim()
     const sourceAsset = String(body?.sourceAsset ?? '').trim()
     if (!styleId) throw new HttpError(400, 'styleId is required')
@@ -191,6 +196,10 @@ const ROUTES: [string, RegExp, Handler][] = [
     const parsed = parseSketchDraft(styleId, sourceAsset)
     db.prepare('UPDATE styles SET parsed_sketch = ? WHERE id = ?')
       .run(JSON.stringify(parsed), styleId)
+    audit(db, {
+      actor: user!.name, action: 'Sketch parsed to draft', target: styleId,
+      reason: sourceAsset,
+    })
     return parsed
   }],
 
@@ -645,7 +654,13 @@ const ROUTES: [string, RegExp, Handler][] = [
   // it must never appear in a response body or in client code.
   // With reference images attached (multipart) we call /v1/images/edits so the
   // actual pixels travel with the prompt; text-only requests use /generations.
-  ['POST', /^\/api\/generate-image$/, async ({ body }) => {
+  // Gated and logged, because this one spends money. It was reachable with no
+  // session: anyone who could reach the port could bill the account, sixteen
+  // 1024px reference images at a time, with nothing written down. Least
+  // privilege is enforced on the server every time (SEC-001), and an AI call
+  // that leaves no audit row is one nobody can account for afterwards.
+  ['POST', /^\/api\/generate-image$/, async ({ db, user, body }) => {
+    require_(user, EDIT_ANY, 'generate imagery')
     const key = process.env.OPENAI_API_KEY
     if (!key) throw new HttpError(503, 'provider not configured')
 
@@ -689,6 +704,15 @@ const ROUTES: [string, RegExp, Handler][] = [
     const data = await upstream.json() as any
     const b64 = data?.data?.[0]?.b64_json
     if (!b64) throw new HttpError(502, 'image provider returned no image')
+
+    // The prompt is the record. "Prompt on file" in the provenance chip has to
+    // mean a file somewhere, or the chip is decoration.
+    audit(db, {
+      actor: user!.name,
+      action: 'Image generated',
+      target: model,
+      reason: `${images.length} reference image${images.length === 1 ? '' : 's'} · ${prompt}`,
+    })
 
     return {
       image: `data:image/png;base64,${b64}`,

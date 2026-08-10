@@ -1,7 +1,15 @@
 import * as THREE from 'three'
-import * as GarmentEngineModule from 'garment-engine'
 import { createStudioEnvironment } from './env/studio.js'
 import { createDressForm } from './form.js'
+
+/**
+ * garment-engine is a local file: link to a folder outside this repository, so
+ * it is present on one machine and absent everywhere else. When it cannot be
+ * resolved, vite.config.js aliases in src/garment-engine-absent.js and these
+ * come back null — the dress form and the views still work, and the page says
+ * what is missing instead of failing to load at all.
+ */
+import * as GarmentEngineModule from 'garment-engine'
 
 const { GarmentEngine, ThreeGarmentMesh } = GarmentEngineModule
 
@@ -116,7 +124,22 @@ function addGarmentEnginePresentation(envMap) {
   }
 }
 
-const garment = hasLinkedFlatSketch ? addGarmentEnginePresentation(env.envMap) : { update() {}, settle() {} }
+// Needs both a linked flat sketch AND the engine to be installed. Without the
+// engine the form still renders and still turns; only the garment is absent.
+const garment = (hasLinkedFlatSketch && GarmentEngine)
+  ? addGarmentEnginePresentation(env.envMap)
+  : { update() {}, settle() {} }
+
+if (hasLinkedFlatSketch && !GarmentEngine) {
+  const note = document.createElement('p')
+  note.style.cssText =
+    'font:11px/1.6 "IBM Plex Mono",monospace;color:#B3272D;margin:8px 0 0;max-width:52ch'
+  note.textContent =
+    'Garment not drawn: the garment-engine package is not installed. It is a local '
+    + 'link to a folder outside this repository (see showroom/README). The dress form '
+    + 'and the front / side / back views are unaffected.'
+  mount?.parentElement?.appendChild(note)
+}
 
 /* ------------------------------------------------------------------- views */
 // Azimuth per view. Side is camera-left so a left-side-seam zip is the thing you see.

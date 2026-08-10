@@ -9,12 +9,14 @@
     "capture": "node tools/capture.mjs"
   },
   "dependencies": {
-    "garment-engine": "file:../../garment-engine",
     "three": "^0.185.1",
     "postprocessing": "^6.36.4"
   },
   "devDependencies": {
     "vite": "^5.4.11",
     "puppeteer": "^23.10.4"
+  },
+  "optionalDependencies": {
+    "garment-engine": "file:../../garment-engine"
   }
 }
