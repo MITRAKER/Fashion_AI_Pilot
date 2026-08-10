@@ -536,11 +536,32 @@ describe('creating a season and a style', () => {
     assert.equal(r.status, 200)
     const c = r.body.collection
     assert.equal(c.id, 'AW28-TEST')
-    assert.equal(c.stages.length, 15, 'the 52-week plan is fifteen stages')
+    // The facts are Natalie's calendar document, not a shape we chose.
+    assert.equal(c.stages.length, 21, 'twenty-one milestones, per the milestone table')
     assert.equal(c.styles.length, 0, 'a new season has no styles')
     assert.ok(c.stages.every((s: any) => s.status === 'Not Started'),
       'nothing is pre-completed')
     assert.equal(c.stages.filter((s: any) => s.gate).length, 4, 'four approval gates')
+
+    // Back-scheduled: weeks count DOWN to the start-ship date, they do not
+    // count up from a kick-off that is anchored to nothing.
+    const weeks = c.stages.map((s: any) => Number(String(s.weeks).replace('W-', '')))
+    assert.equal(weeks[0], 52, 'the plan opens 52 weeks before start ship')
+    assert.equal(weeks[weeks.length - 1], 0, 'and lands on the floor set')
+    assert.ok(weeks.every((w: number, i: number) => i === 0 || w <= weeks[i - 1]),
+      'the countdown never goes backwards')
+
+    // Fabric locks BEFORE the mood board. This is the ordering the previous
+    // fifteen-stage list had wrong, and it is the thesis of the document.
+    const fabric = c.stages.find((s: any) => /fabric platform locked/i.test(s.name))
+    const board = c.stages.find((s: any) => /mood board/i.test(s.name))
+    assert.ok(fabric && board, 'both milestones exist')
+    assert.ok(Number(fabric.weeks.replace('W-', '')) > Number(board.weeks.replace('W-', '')),
+      'the fabric platform locks earlier than the mood board')
+
+    // Every milestone carries an owner and a documented basis.
+    assert.ok(c.stages.every((s: any) => s.output && s.output.includes('·')),
+      'each milestone names an owner and cites a basis')
   })
 
   test('the new season is visible in state, alongside the seeded one', async () => {
